@@ -1,5 +1,5 @@
 # Vali
-Vali analyzes PRM raw files acquired by Thermo-Fisher Orbitrap instruments. It is optimized to work with [Picky](https://picky.mdc-berlin.de) generated spectrum libraries and provides semi-automated algorithms peak determination. All peaks can be manually adjusted or corrected. Subsequently, quantified fragment peaks can be exported for a further analysis by the user.
+Vali analyzes PRM raw files acquired by Thermo-Fisher Orbitrap instruments. It is optimized to work with [Picky](https://picky.mdc-berlin.de) generated spectrum libraries and provides semi-automated peak determination. All peak assignments can be manually adjusted or corrected. Subsequently, quantified fragment peaks can be exported for a further analysis by the user.
 ## Requirements
 * R > 4.0.3
 * [RawDiag Requirements](https://github.com/fgcz/rawDiag):

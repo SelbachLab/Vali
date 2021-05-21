@@ -9,8 +9,8 @@ ppmWindow <- function(x,ppm=10){
   c(x-wi/2,x+wi/2)
 }
 strsplitslot <- function(x,k=1,str = ";",strreplace = ";",...){
-    unlist(sapply(strsplit(as.character(x),split = str,...),function(x){paste(x[k],collapse = strreplace)}))
-  }
+  unlist(sapply(strsplit(as.character(x),split = str,...),function(x){paste(x[k],collapse = strreplace)}))
+}
 PeptideHydrophobicity <- function(Seq){
   AA <- c("W","F","L","I","M","V","Y","A","T","P","E","D","C","S","Q","G","N","R","H","K")
   Rc <- c(11,10.5,9.6,8.4,5.8,5,4,0.8,0.4,0.2,0,-0.5,-0.8,-0.8,-0.9,-0.9,-1.2,-1.3,-1.3,-1.9)
@@ -1801,7 +1801,7 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
       any(x[1]<=Precursors&x[2]>=Precursors)
     })
     
-   
+    
     sn <- ms2scans$scanNumber[SelectedScans]
     sn <- sort(sn)
     
@@ -2443,7 +2443,7 @@ Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFil
     mwm
   })
   
-
+  
   names(DECOYS) <- ST$SpecID
   
   # Calculating Masses
@@ -2524,7 +2524,7 @@ Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFil
         vec <- ((charval)-position+1):(charval)
       }
     }
-   
+    
     # print(ion)
     # print(vec)
     REVMW <- sum(pep[vec],na.rm = T)
@@ -2537,7 +2537,7 @@ Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFil
     progress$close()
     
   }
-
+  
   # plot(TTdec$Masses==TT$Masses)
   # stop()
   #####
@@ -2556,23 +2556,23 @@ Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFil
   }
   
   if(0){
-  # 
-  # if(parallelExecution ==T){
-  #   raws <<- raws
-  #   dirout <<- dirout
-  #   cl <- makeCluster(threads)
-  #   # PH <- parSapply(cl,uniSeq,function(x){PeptideHydrophobicity(x)})
-  #   s1 <-system.time(Cor <- parSapply(cl,raws,RawDiag_Vali_Extracter_DIA,
-  #                                     dirout=dirout,outpath=outpath,ST=ST,TT=TT,TTdec=TTdec,ppm1=ppm1,ppm2=ppm2,
-  #                                     SystemPath=SystemPath,session=NULL,DIA=useDIA))
-  #   stopCluster(cl)
-  # }else{
-  #   save(raws,RawDiag_Vali_Extracter_DIA,dirout,outpath,ST,TT,TTdec,ppm1,ppm2,SystemPath,useDIA,file="Temp_ExtractorData.rda")
-  #   
-  #   sapply(raws,RawDiag_Vali_Extracter_DIA,dirout=dirout,outpath=outpath,ST=ST,TT=TT,TTdec=TTdec,ppm1=ppm1,ppm2=ppm2,
-  #          SystemPath=SystemPath,DIA=useDIA)
-  # }
-  # 
+    # 
+    # if(parallelExecution ==T){
+    #   raws <<- raws
+    #   dirout <<- dirout
+    #   cl <- makeCluster(threads)
+    #   # PH <- parSapply(cl,uniSeq,function(x){PeptideHydrophobicity(x)})
+    #   s1 <-system.time(Cor <- parSapply(cl,raws,RawDiag_Vali_Extracter_DIA,
+    #                                     dirout=dirout,outpath=outpath,ST=ST,TT=TT,TTdec=TTdec,ppm1=ppm1,ppm2=ppm2,
+    #                                     SystemPath=SystemPath,session=NULL,DIA=useDIA))
+    #   stopCluster(cl)
+    # }else{
+    #   save(raws,RawDiag_Vali_Extracter_DIA,dirout,outpath,ST,TT,TTdec,ppm1,ppm2,SystemPath,useDIA,file="Temp_ExtractorData.rda")
+    #   
+    #   sapply(raws,RawDiag_Vali_Extracter_DIA,dirout=dirout,outpath=outpath,ST=ST,TT=TT,TTdec=TTdec,ppm1=ppm1,ppm2=ppm2,
+    #          SystemPath=SystemPath,DIA=useDIA)
+    # }
+    # 
   }else{
     CommandFile <- "#!/usr/bin/env Rscript
 args = commandArgs(trailingOnly=TRUE)
@@ -2600,7 +2600,7 @@ try({RawDiag_Vali_Extracter_DIA(raws[as.numeric(args[1])],dirout=dirout,outpath=
         }
       }
     }
-   
+    
     continue <- T
     while(continue){
       
@@ -2668,7 +2668,7 @@ try({RawDiag_Vali_Extracter_DIA(raws[as.numeric(args[1])],dirout=dirout,outpath=
       }else{
         Sys.sleep(1)
       }
-
+      
     }
   }
   
@@ -3014,7 +3014,7 @@ CompilingDatabase <- function(mainPath,maxquant = NULL,session = NULL,test = F,S
   # test <- dbReadTable(db,"mz530.770195_2_GVSINQFCK#heavy_sp|Q9CQF0_MRPL11_607482")
   # scoring function
   ScoringWrapper_parallelized(db,SystemPath = SystemPath,Parallelh20 = F,session,ReScore = F,threads = threads)#requires SystemPath
-    # FDR function, returns the model and a Score cutoff at p = 0.01
+  # FDR function, returns the model and a Score cutoff at p = 0.01
   if(length(session) >0){
     
     progress$set(message = 'FDR',
@@ -4061,6 +4061,7 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
       unlink(list.files())
     }
     cl <- makeCluster(threads,outfile="test.txt",setup_strategy = "sequential")
+    clusterExport(cl, "Models.h2o")
     unlink("./Temp_CheckFile.txt")
     unlink("./REV_Temp_CheckFile.txt")
     Files <- NULL
@@ -4069,10 +4070,13 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
     try({
       dbNAME <- db@dbname
       wd <- getwd()
-      parLapply(cl,1:length(fi),function(itx,fi,dbNAME=NULL,session=NULL,ReScore=F,SystemPath=NULL,Models.h2o=NULL,db=NULL,wd = NULL){
+      
+      
+      hu <- parLapply(cl,1:length(fi),function(itx,fi,dbNAME=NULL,session=NULL,ReScore=F,SystemPath=NULL,Models.h2o=NULL,db=NULL,wd = NULL){
         library(RSQLite)
         library(data.table)
         library(h2o)
+        h2o.init()
         source(paste(SystemPath,"R/EvaluationScript_PRM_sqlite.R",sep = "/"))
         setwd(wd)
         cat("Working on",itx)
@@ -4083,10 +4087,10 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
         #   progressScoring$set(value = itx)
         # }
         Reverse <- grepl("^revmz",mzname,perl=T)
-        #mz569.28904_2_HMQNSEIIR#heavy_Q8N3U4;Q8N3U4-2_STAG2_5385025
-        db <- dbConnect(SQLite(),dbNAME)
-        mztable <- dbReadTable(db,mzname)
-        dbDisconnect(db)
+        
+        db2 <- dbConnect(SQLite(),dbNAME)
+        mztable <- dbReadTable(db2,mzname)
+        dbDisconnect(db2)
         
         mztable <- data.table(mztable)
         
@@ -4150,12 +4154,13 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
           # mztableSelect$scan <- TrainSet$scan
           # 
           # mztableSelect$mzname <- mzname
-          tr <- try({mztableSelect <- MakeFeatureTable(mztable,mzname = mzname)})
+          
+          tr <- try({mztableSelect <- MakeFeatureTable(mztable,defaultPeptideLength =nchar(SEQUENCE),mzname = mzname)})
           if(class(tr)=="try-error"){
             print("error in MakeFeatureTable. Check variables mztable and mzname in function MakeFeatureTable().")
             mztable <<- mztable
             mzname <<- mzname
-            stop()
+            stop(tr)
           }
           if(Reverse){
             fwrite(mztableSelect,file = paste("./TempTables/REV_Temp_CheckFile",itx,".txt"),sep = "\t",append = T)
@@ -4166,7 +4171,9 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
         
         NULL
       },
-      fi=fi,db=db,SystemPath=SystemPath,Models.h2o=Models.h2o,dbNAME=dbNAME,wd = wd)
+      fi=fi,SystemPath=SystemPath,Models.h2o=Models.h2o,dbNAME=dbNAME,wd = wd)
+      
+      
       Files <- lapply(list.files("./TempTables",pattern="^Temp.CheckFile",full.names = T),fread,sep = "\t",stringsAsFactor=F,integer64 = "double")
       RevFiles <- lapply(list.files("./TempTables",pattern="^REV_Temp.CheckFile",full.names = T),fread,sep = "\t",stringsAsFactor=F,integer64 = "double")
       Files <- rbindlist(Files)
@@ -4278,7 +4285,7 @@ ScoringWrapper <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh20=F,ses
       progressScoring <- Progress$new(session,min=0, max=length(fi))
       on.exit(progressScoring$close())
     }
-  
+    
     pdf("Scoring_plots.pdf")
     sapply(1:length(fi),function(itx){
       itx <<- itx
@@ -4470,9 +4477,9 @@ ScoringWrapper <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh20=F,ses
 }
 ## Called in Scoring Wrapper
 ValiScoringFunction <- function(tab,group,it=0,parallelization = F,topFragments = 5){
-  tab <<- tab
+  # tab <<- tab
   
-  group <<- group
+  # group <<- group
   
   cat("\r",it)
   COLUMNS <- grep("charge",names(tab))
@@ -6307,7 +6314,7 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
                        supersmooth_I_set =F, # apply smoother before detection
                        supersmooth_bw_set=0.1, 
                        ApplyMaximumWidth=T
-                       ){
+){
   rt_pep     <- unique(rt_pep)
   # Peakwidth  <<- Peakwidth
   # transitions <<- transitions
@@ -6523,10 +6530,10 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
     # }
     win <- NA
     
-
     
     
-
+    
+    
   }else{
     Peaks <- list("Manual")
     qua <- presetQuantiles
@@ -7734,3 +7741,69 @@ TransitionGGplot <- function(subDat,
   }
   p1+ annotate("text",  x=Inf, y = Inf, label = paste("mz:",as.character(round(unique(subDat$mz),1))), vjust=1, hjust=1)
 }
+
+MakeFeatureTable <- function(mztable,defaultPeptideLength=NULL,mzname="unknown"){
+  library(h2o)
+  h2o.init()
+  mztable <- mztable[,ValiScoringFunction(.SD,.BY),rawfile]
+  # mztable <- mztable[,ValiScoringFunction(.SD,.BY),]
+  
+  
+  
+  mztable <- mztable[order(RT_min),]
+  mztable <- data.table(mztable)
+  mztable <- mztable[order(RT_min),]
+  
+  #### h2o prediction
+  TrainSet <- mztable
+  # TrainSet$ScaAfter <- NULL
+  # TrainSet$ScaAfter2 <- NULL
+  # TrainSet$ScaBefore <- NULL
+  # TrainSet$ScaBefore2 <- NULL
+  # 
+  
+  TrainSet[,ScaBefore:= {c(SCAall[-1],0)},.(rawfile)]
+  TrainSet[,ScaBefore2:= {
+    if(length(SCAall)>3){
+      ret <-c(SCAall[-c(1:2)],0,0)
+    }else{
+      ret <- 0
+    }
+    ret
+    
+  },.(rawfile)] 
+  
+  TrainSet[,ScaAfter:= c(0,SCAall[-length(SCAall)]),.(rawfile)]
+  TrainSet[,ScaAfter2:= 
+             {
+               if(length(SCAall)>3){
+                 ret <- c(0,0,SCAall[-c(length(SCAall):(length(SCAall)-1))])
+               }else{
+                 ret <- 0
+               }
+               ret
+               
+             },.(rawfile)]
+  TrainSet$MLOGP <- -log10(TrainSet$R_p)
+  if(length(defaultPeptideLength)>0){
+    print("Adding PeptideLength")
+    TrainSet$Peptide_Length <- defaultPeptideLength
+  }
+  # evaluating:
+  
+  mdpar <- Models.h2o$DeepLearning@parameters$x
+  mdpar_match <- match(mdpar,colnames(TrainSet))
+  missing <- mdpar[is.na(mdpar_match)]
+  print(missing)
+  
+  if(length(missing)>0){
+    print(paste("ReturningNUll, missing",missing))
+    return(NULL)
+  }
+  mztableSelect <- TrainSet[,.SD,.SDcols = mdpar_match]
+  mztableSelect$scan <- TrainSet$scan
+  
+  mztableSelect$mzname <- mzname
+  mztableSelect
+}
+
