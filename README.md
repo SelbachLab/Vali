@@ -27,7 +27,6 @@ The Validation Tool Panel allows you to go through all peptides and readjust the
 Press the Export button in the upper right Corner. After all sequences have been analysed Vali will provide you with the following list of tables:
 1. TransitionList.txt (Quantitative information of Transitions, use this table for downstream analysis).
 2. Peaks.txt (for replotting the peaks, or downstream analysis such as lm based ratio analysis.)
-3. ProteinList.txt (Quantiative information of Proteins. Experimental, untested.)
 4. Ratios.txt (for SILAC pairs)
 
 ## Known issues
