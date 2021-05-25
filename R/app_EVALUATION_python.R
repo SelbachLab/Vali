@@ -2265,7 +2265,7 @@ server <- function(input, output, session){
           X_limit <- c(temp$Q1[1],temp$Q2[1])
           PeakDetected <- DetectPeak(pe <- min(X_limit,na.rm = T)+diff(X_limit)/2,diff(X_limit)/2,SplitList$Transitions,
                                      SplitList$Info$RT_Used,
-                                     presetQuantiles = X_limit)#$quantile
+                                     presetQuantiles = X_limit,scores = SplitList$Info$DL_Scores)#$quantile
           INFO <- SplitTransitionInfo(temp,"Q1")
           
           XIC <- c(PeakDetected$XIC,INFO$Info[INFO$Info$QuantitationType=="XIC",])

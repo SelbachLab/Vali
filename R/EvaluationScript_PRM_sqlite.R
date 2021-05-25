@@ -6146,7 +6146,7 @@ Neighbour_Mean_imputation <- function(rawda){
   rawda
 }
 PeakDetection <- function(transitions,RTs,movavg_window=5,movavg_type="t",QualityPosition=NA,summary_bw=0.1,ZeroSmooth=T,Diff_Smooth=T,supersmooth_I=F,supersmooth_bw=0.2){
-  transitionstemp <- transitions
+  transitionstemp <<- transitions
   movavg_type <<- movavg_type
   ZeroSmooth <<- ZeroSmooth
   Diff_Smooth <<- Diff_Smooth
@@ -6213,17 +6213,16 @@ PeakDetection <- function(transitions,RTs,movavg_window=5,movavg_type="t",Qualit
   })
   # RTs[temp$V2]
   temp <- rbindlist(temp)
-  # RTs[37]
+  # RTs[37]P
   # hist(RTs[temp$V2])
   # temp <- temp[V1>median(temp$V1,na.rm = T)]
   tfu <- temp[,{
-    data.table(s=sum(V1/(Counter)^2),
-               start=(quantile(RTs[V3],probs=0.1)),
-               end=(quantile(RTs[V4],probs=0.9)))
+    data.table(s=sum(V1/(Counter),na.rm = T),
+               start=(quantile(RTs[V3],probs=0.1,na.rm = T)),
+               end=(quantile(RTs[V4],probs=0.9,na.rm = T)))
     
-  },.(V2=RTs[V2])]
+  },.(V2=round(RTs[V2],1))]
   tfu <<- tfu
-  
   d <- density(tfu$V2[tfu$s>quantile(tfu$s,0.5)],bw=summary_bw)
   # plot(d)
   # points(RTs,transitions$y12/max(transitions$y12),type="l")
@@ -6313,7 +6312,7 @@ PeakDetection <- function(transitions,RTs,movavg_window=5,movavg_type="t",Qualit
 #   list(Peaks=tfu,PeakSummary=PeakSummary,PeakDensity=d)
 # }
 DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
-                       scores=temp$DL_Scores,      
+                       scores=NULL,      
                        lag = 5,threshold = 5,influence = 0.01,#please check if obsolete
                        presetQuantiles = NULL,# defines manual set borders
                        session = NULL,# for shiny
@@ -6321,18 +6320,33 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
                        MinPeakWidth=1/60*10,# if Peaks ar too small, they will be symmetrically widened to this window
                        supersmooth_I_set =F, # apply smoother before detection
                        supersmooth_bw_set=0.1, 
-                       ApplyMaximumWidth=T
+                       ApplyMaximumWidth=T,
+                       FDR=NULL,
+                       alpha=0.01
 ){
   rt_pep     <- unique(rt_pep)
   # Peakwidth  <<- Peakwidth
   # transitions <<- transitions
   RT.DetectPeak <- RT
+  # putting in RT order:
   ord_vec <- order(RT)
   transitions <- transitions[ord_vec,]
   RT <- RT[ord_vec]
+  RT.DetectPeak <- RT.DetectPeak[ord_vec]
+  if(length(scores)==length(ord_vec)){
+    scores <- scores[ord_vec]
+  }
+  if(length(FDR)==length(ord_vec)){
+    FDR <- FDR[ord_vec]
+  }
+  
+  
+  
   transitions[transitions == -1] <- 0
   transitions$rawfile <- NULL
   print(paste(Sys.time(),"Running Detect Peak"))
+  
+  
   
   if(0){
     transitions.DetectPeak <- data.frame(transitions)
@@ -6356,16 +6370,20 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
   if(length(presetQuantiles) != 2&length(Seli) > 0){
     rm("Peaks")
     print("Peak Detection")
-    Peaks <<- PeakDetection(transitions,RT.DetectPeak,movavg_window=5,movavg_type="t",ZeroSmooth = F,Diff_Smooth = F,supersmooth_I = supersmooth_I_set,supersmooth_bw = supersmooth_bw_set)
+    Peaks <- PeakDetection(transitions,RT.DetectPeak,movavg_window=5,movavg_type="t",ZeroSmooth = F,Diff_Smooth = F,supersmooth_I = supersmooth_I_set,supersmooth_bw = supersmooth_bw_set)
     # Peaks <<- PeakDetection(transitions,RT.DetectPeak,movavg_window=5,movavg_type="t",ZeroSmooth = F,Diff_Smooth = F,supersmooth_I = F)
-    scores <<- scores
+    scores <- scores
+    # plot(RT.DetectPeak,transitionstemp$)
+    RT.DetectPeak <<- RT.DetectPeak
     # Adding ScoreInformation:
     ######
+    # plot(RT.DetectPeak,scores)
     PS <- Peaks$Peaks
     if(length(PS$s)>0){
       PS$MaxIntensity <- PS$s
       PS$peak <- PS$V2
     }
+    # adding FDR  and score information:
     PS[,score:=.({
       gr <- .BY
       sel <- RT.DetectPeak>=gr$start&RT.DetectPeak<=gr$end
@@ -6376,12 +6394,32 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
         if(length(sc)>3){
           sc <- sc[1:3]
         }
-        o <- sum(sc,na.rm = T)/length(sc)
-        o <- max(sc)
+        # o <- sum(sc,na.rm = T)/length(sc)
+        o <- max(sc,na.rm = T)
       }
       o
     }),.(start,end,MaxIntensity,peak)]
+    if(length(FDR)>0){
+      PS[,c("FDRaverage","FDRmin"):={
+        gr <- .BY
+        sel <- RT.DetectPeak>=gr$start&RT.DetectPeak<=gr$end
+        if(sum(sel)==0){
+          o <- (1)
+          o_min <- 1
+        }else{
+          sc <- sort(FDR[sel],decreasing=T)
+          # if(length(sc)>3){
+          #   sc <- sc[1:3]
+          # }
+          o <- sum(sc,na.rm = T)/length(sc)
+          o_min <- min(FDR,na.rm = T)
+        }
+        list(o,o_min)
+      },.(start,end,MaxIntensity,peak)]
+      
+    }
     
+
     PS$RTdiff <- abs(PS$peak-rt_pep)
     q1 <- quantile(PS$score,0.8)
     q2 <- quantile(PS$MaxIntensity,0.8)
@@ -6389,6 +6427,22 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
     
     # step 1 filter on best included Scores:
     PS <- PS[score>=q1]
+    ObligatoricFDR <- T
+    if(length(FDR)>0){
+      if(ObligatoricFDR&length(presetQuantiles)==0){
+        PS <- PS[FDRmin<alpha]
+        
+      }
+    }
+   
+    qset <- 0.8
+    while(diff(range(PS$score))>0.1){
+      qset <- qset+0.1
+      q1 <- quantile(PS$score,0.8)
+      PS <- PS[score>=q1]
+    }
+    
+    # step on 
     # step 2 filter on best Intensities:
     if(dim(PS)[1]>1&any(PS$MaxIntensity>=q2)){
       PS <- PS[MaxIntensity>=q2]
@@ -6607,6 +6661,7 @@ DetectPeakWrapper <- function(
   print(dbtaNameVec)
   if(all(unlist(dblistT(db =dbp)) != dbtaNameVec)|Reanalysis){
     x <- data.table(x)
+    temp <- x[rawfile==rawfile[1]]
     # Going through rawfile by rawfile
     DP <- x[,{
       cat("\r",.GRP,.BY$rawfile)
@@ -6635,6 +6690,7 @@ DetectPeakWrapper <- function(
                                       transitions = transidf,
                                       RT = temp$RT_Used,
                                       scores=temp$DL_Scores,
+                                      FDR=temp$FDR,
                                       MinPeakWidth = MinPeakWidth,
                                       MaxPeakWidth = MaxPeakWidth,supersmooth_I_set = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set,ApplyMaximumWidth = T
       )})#$quantile
@@ -6773,6 +6829,7 @@ DetectPeakWrapper <- function(
                                             transitions = trans$Transitions,
                                             RT = trans$Info$RT_Used,
                                             presetQuantiles = RANGE,
+                                            FDR=NULL,
                                             scores=temp$DL_Scores,
                                             MinPeakWidth = MinPeakWidth,
                                             MaxPeakWidth = MaxPeakWidth,supersmoeoth_I_set = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set
