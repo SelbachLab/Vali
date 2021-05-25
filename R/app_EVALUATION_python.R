@@ -2019,70 +2019,7 @@ server <- function(input, output, session){
             # }
             
             mztable <- ta
-            MakeFeatureTable <- function(mztable,defaultPeptideLength=NULL,mzname="unknown"){
-              
-              mztable <- mztable[,ValiScoringFunction(.SD,.BY),rawfile]
-              # mztable <- mztable[,ValiScoringFunction(.SD,.BY),]
-              
-              
-              
-              mztable <- mztable[order(RT_min),]
-              mztable <- data.table(mztable)
-              mztable <- mztable[order(RT_min),]
-              
-              #### h2o prediction
-              TrainSet <- mztable
-              # TrainSet$ScaAfter <- NULL
-              # TrainSet$ScaAfter2 <- NULL
-              # TrainSet$ScaBefore <- NULL
-              # TrainSet$ScaBefore2 <- NULL
-              # 
-              
-              TrainSet[,ScaBefore:= {c(SCAall[-1],0)},.(rawfile)]
-              TrainSet[,ScaBefore2:= {
-                if(length(SCAall)>3){
-                  ret <-c(SCAall[-c(1:2)],0,0)
-                }else{
-                  ret <- 0
-                }
-                ret
-                
-              },.(rawfile)] 
-              
-              TrainSet[,ScaAfter:= c(0,SCAall[-length(SCAall)]),.(rawfile)]
-              TrainSet[,ScaAfter2:= 
-                         {
-                           if(length(SCAall)>3){
-                             ret <- c(0,0,SCAall[-c(length(SCAall):(length(SCAall)-1))])
-                           }else{
-                             ret <- 0
-                           }
-                           ret
-                           
-                         },.(rawfile)]
-              TrainSet$MLOGP <- -log10(TrainSet$R_p)
-              if(length(defaultPeptideLength)>0){
-                print("Adding PeptideLength")
-                TrainSet$Peptide_Length <- defaultPeptideLength
-              }
-              # evaluating:
-              
-              mdpar <- Models.h2o$DeepLearning@parameters$x
-              mdpar_match <- match(mdpar,colnames(TrainSet))
-              missing <- mdpar[is.na(mdpar_match)]
-              print(missing)
-              
-              if(length(missing)>0){
-                print(paste("ReturningNUll, missing",missing))
-                return(NULL)
-              }
-              mztableSelect <- TrainSet[,.SD,.SDcols = mdpar_match]
-              mztableSelect$scan <- TrainSet$scan
-              
-              mztableSelect$mzname <- mzname
-              mztableSelect
-            }
-            MZFUN <- MakeFeatureTable(ta,peptidelength,mzname)
+            MZFUN <- MakeFeatureTable(ta,peptidelength,mzname,mdpar = Models()$DeepLearning@parameters$x)
             mztable.h2o <- as.h2o(MZFUN)
             s2 <-system.time(
               PredictionScores <- sapply(Models(),function(x){
