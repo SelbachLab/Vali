@@ -140,7 +140,7 @@ ui <- fluidPage(
   #tags$head(tags$style(".shiny-progress {top: 50% !important;left: 50% !important;margin-top: -100px !important;margin-left: -250px !important; color: blue;font-size: 20px;font-style: italic;}")),
   tags$script(inactivity),   
   
-  fluidRow(column(10, titlePanel(paste("Vali - Your Magic PRM Validation Tool"),version) ),column(2, actionButton("Export", "Export Tables!")) ),
+  fluidRow(column(1,icon("jedi","fa-4x")),column(9, titlePanel(paste("Vali - PRM Validation Tool"),version) ),column(2, actionButton("Export", "Export Tables!")) ),
   
   fluidRow(column(1, actionButton("View", icon = icon("eye"),label = ""),style = "margin-top: 25px"),
            column(7,uiOutput("Sessions")),
