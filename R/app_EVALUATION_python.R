@@ -140,17 +140,17 @@ ui <- fluidPage(
   #tags$head(tags$style(".shiny-progress {top: 50% !important;left: 50% !important;margin-top: -100px !important;margin-left: -250px !important; color: blue;font-size: 20px;font-style: italic;}")),
   tags$script(inactivity),   
   
-  fluidRow(column(1,icon("jedi","fa-4x")),column(9, titlePanel(paste("Vali - PRM Validation Tool"),version) ),column(2, actionButton("Export", "Export Tables!")) ),
+  fluidRow(column(1,icon("jedi","fa-4x")),column(9, titlePanel(paste("Vali - PRM Validation Tool"),version) ),column(2, actionButton("Export", "Export Tables!",style="margin-top:25px;margin-right:5px",icon = icon("file-export"))) ),
   
   fluidRow(column(1, actionButton("View", icon = icon("eye"),label = ""),style = "margin-top: 25px"),
            column(7,uiOutput("Sessions")),
            column(2,textInput("SearchSessions",label = "Filter",value = "")),
-           column(2, actionButton("RemoveEntry",label = "Remove Analysis",width = "100%"),style = "margin-top: 25px")
+           column(2, actionButton("RemoveEntry",label = "Remove Analysis",icon=icon("trash"),width = "100%"),style = "margin-top: 25px")
   ),
   # Paths
   mainPanel(
     tabsetPanel(
-      tabPanel("Validation Tool", 
+      tabPanel("Validation Tool",icon=icon("binoculars") ,
                
                wellPanel(
                  #ROW 2------
@@ -356,33 +356,38 @@ ui <- fluidPage(
       #          )
       # ),
       # TAB PANEl ------
-      tabPanel("Rawfile Scanner",
+      tabPanel("Rawfile Scanner",icon=icon("folder-open"),
                wellPanel(
-                 fluidRow(column(2,actionButton("mainPathButton","Browse")),column(10,textInput(inputId = "mainPath","Main Folder",value = mainPath,width = '100%'))) ,# Protein Selecter
+              wellPanel(
+                 fluidRow(column(2,actionButton("mainPathButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "mainPath","Main Folder",value = mainPath,width = '100%'))) ,# Protein Selecter
                  conditionalPanel("false",
-                 fluidRow(column(2,actionButton("MaxQuantButton","Browse")),column(10,textInput(inputId = "MaxQuant","MaxQuant txt",value = maxquant,width = '100%')))
+                 fluidRow(column(2,actionButton("MaxQuantButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "MaxQuant","MaxQuant txt",value = maxquant,width = '100%')))
                  ),# Protein Selecter
-                 fluidRow(column(2,actionButton("inclusionListButton","Browse")),column(10,textInput(inputId = "inclusionList","Picky Export Folder",value = inclusionList,width = '100%'))) ,# Protein Selecter
+                 fluidRow(column(2,actionButton("inclusionListButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "inclusionList","Picky Export Folder",value = inclusionList,width = '100%'))) ,# Protein Selecter
                  
-                 actionButton("saveSessionPaths",icon = icon("bed"),label = "Save Paths"),
-                 fluidRow(
-                   column(2,checkboxInput("DIA","DIA",FALSE)),
-                   
-                   column(3,conditionalPanel("input.DIA==false",
-                                             sliderInput("ppm1","MS1 ppm",0,50,10)
-                                             
+                 actionButton("saveSessionPaths",icon = icon("bed"),label = "Save Paths",style="margin-bottom=25px")),
+                 # fluidRow(column(1)),
+                 wellPanel(
+                   fluidRow(
+                     column(2,checkboxInput("DIA","DIA",FALSE)),
+                     
+                     column(3,conditionalPanel("input.DIA==false",
+                                               sliderInput("ppm1","MS1 ppm",0,50,10)
+                                               
+                     )
+                     
+                     ),
+                     column(3,
+                            sliderInput("ppm2","MS2 ppm",0,50,10)
+                            
+                     ),
+                     column(2,
+                            numericInput(inputId = "Threads",label = "Threads",min = 1,max = 10,value = 1)),
+                     column(2,                 checkboxInput("Recompile","Recompile Database",value = FALSE))
+                     
                    )
-                   
-                   ),
-                   column(3,
-                          sliderInput("ppm2","MS2 ppm",0,50,10)
-                          
-                   ),
-                   column(2,
-                          numericInput(inputId = "Threads",label = "Threads",min = 1,max = 10,value = 1)),
-                   column(2,                 checkboxInput("Recompile","Recompile Database",value = FALSE))
-                   
-                 ),
+                 )
+                ,
                  actionButton("goButton", "Go!",width = "100%",icon = icon("bullhorn")),
                  #,
                  #actionButton("savepaths", "Only Save Path",width = "100%"),
@@ -393,7 +398,7 @@ ui <- fluidPage(
                
                
       ),
-      tabPanel("Advanced Settings",
+      tabPanel("Advanced Settings",icon=icon("skull-crossbones"),
                # sliderInput(inputId = "PeakWidth",label = "Peak Detection Width",min = 0,max = 40,step = 1,value = inputListStdSet$PeakWidth),
                conditionalPanel("false",
                                 selectInput("quantitationType","Quantitation Type",c("XIC","Intensities"),selected = c("XIC"))
