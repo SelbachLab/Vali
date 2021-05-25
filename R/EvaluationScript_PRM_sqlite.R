@@ -4013,7 +4013,9 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
     # mdpath <- list.files(paste(SystemPath,"Model",sep = "/"),pattern = "ScoringModel_Full.rda$",full.names =T)
     mdpath <- list.files(paste(SystemPath,"Model",sep = "/"),pattern = "model_",full.names =T)
     mdpath <- list.files(paste(SystemPath,"Model/MojoBackup",sep = "/"),pattern = "model_",full.names =T)
-    
+    if(length(mdpath)==0){
+      stop("NO MODELS")
+    }
     if(require(h2o)){
       h2o.init(nthreads = threads, max_mem_size = '2g', ip = "127.0.0.1", port = 4321)
       # 
@@ -4061,7 +4063,12 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
       unlink(list.files())
     }
     cl <- makeCluster(threads,outfile="test.txt",setup_strategy = "sequential")
-    clusterExport(cl, "Models.h2o")
+    print("Exporting Models.h2o")
+    if(file.exists("Models.h2o")){
+      clusterExport(cl, "Models.h2o",envir ="ScoringWrapper_parallelized" )
+      
+    }
+    print("Done Exporting Models")
     unlink("./Temp_CheckFile.txt")
     unlink("./REV_Temp_CheckFile.txt")
     Files <- NULL
@@ -4155,7 +4162,7 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
           # 
           # mztableSelect$mzname <- mzname
           
-          tr <- try({mztableSelect <- MakeFeatureTable(mztable,defaultPeptideLength =nchar(SEQUENCE),mzname = mzname)})
+          tr <- try({mztableSelect <- MakeFeatureTable(mztable,defaultPeptideLength =nchar(SEQUENCE),mzname = mzname,mdpar=Models.h2o$DeepLearning@parameters$x)})
           if(class(tr)=="try-error"){
             print("error in MakeFeatureTable. Check variables mztable and mzname in function MakeFeatureTable().")
             mztable <<- mztable
@@ -4248,6 +4255,7 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
   dev.off()
   return(FUN)
 }
+# ScoringWrapper_parallelized(db,SystemPath = SystemPath,Parallelh20 = F,session,ReScore = F,threads = threads)#requires SystemPath
 
 ScoringWrapper <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh20=F,session = NULL,ReScore=F,threads=3){
   FUN <-try({
@@ -7742,7 +7750,7 @@ TransitionGGplot <- function(subDat,
   p1+ annotate("text",  x=Inf, y = Inf, label = paste("mz:",as.character(round(unique(subDat$mz),1))), vjust=1, hjust=1)
 }
 
-MakeFeatureTable <- function(mztable,defaultPeptideLength=NULL,mzname="unknown"){
+MakeFeatureTable <- function(mztable,defaultPeptideLength=NULL,mzname="unknown",mdpar=c("UNKNOWN")){
   library(h2o)
   h2o.init()
   mztable <- mztable[,ValiScoringFunction(.SD,.BY),rawfile]
@@ -7791,7 +7799,7 @@ MakeFeatureTable <- function(mztable,defaultPeptideLength=NULL,mzname="unknown")
   }
   # evaluating:
   
-  mdpar <- Models.h2o$DeepLearning@parameters$x
+
   mdpar_match <- match(mdpar,colnames(TrainSet))
   missing <- mdpar[is.na(mdpar_match)]
   print(missing)

@@ -52,20 +52,14 @@ minthresh = 5 # minimal amount of datapoints required over whole run per species
 if(length(args1) >0){
   print(args1)
   #SystemPath <- dirname(dirname(args[1]))
-  print(SystemPath)
+  # print(SystemPath)
   
   
 }
 print("Evaluating Path")
 if(!exists("SystemPath")){
-  if(any(grep("windows",Sys.info(),ignore.case = T))){
-    SystemPath <<- c("E:/Dropbox/RPackages/Vali")
-    #SystemPath <- c("E:/Vali")
-    
-    
-  }else{
-    SystemPath <<- c("/Users/henno/Dropbox/RPackages/Vali")
-  }
+
+  SystemPath <- dirname(dirname(rstudioapi::documentPath()))
   
 }
 print("Evaluating Path 2")
@@ -365,7 +359,9 @@ ui <- fluidPage(
       tabPanel("Rawfile Scanner",
                wellPanel(
                  fluidRow(column(2,actionButton("mainPathButton","Browse")),column(10,textInput(inputId = "mainPath","Main Folder",value = mainPath,width = '100%'))) ,# Protein Selecter
-                 fluidRow(column(2,actionButton("MaxQuantButton","Browse")),column(10,textInput(inputId = "MaxQuant","MaxQuant txt",value = maxquant,width = '100%'))) ,# Protein Selecter
+                 conditionalPanel("false",
+                 fluidRow(column(2,actionButton("MaxQuantButton","Browse")),column(10,textInput(inputId = "MaxQuant","MaxQuant txt",value = maxquant,width = '100%')))
+                 ),# Protein Selecter
                  fluidRow(column(2,actionButton("inclusionListButton","Browse")),column(10,textInput(inputId = "inclusionList","Picky Export Folder",value = inclusionList,width = '100%'))) ,# Protein Selecter
                  
                  actionButton("saveSessionPaths",icon = icon("bed"),label = "Save Paths"),
