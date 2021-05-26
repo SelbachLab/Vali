@@ -185,7 +185,7 @@ ui <- fluidPage(
                                       fluidRow(column(4,actionButton("ManualSetPeak","Set",style="background-color: #00b19c;color: #fff")),column(8,actionButton("RemovePeak","Remove",width = "100%",style="background-color: #ff2600;color: #fff"))),
                                       fluidRow(column(12,actionButton("SetSearchArea","Area Search",width = "100%",style="background-color: #2e6da4;color: #fff"),style = "margin-top: 5px")),
                                       fluidRow(column(6,actionButton("Requantify","Requantify"),style = "margin-top: 10px")),
-                                      fluidRow(column(6,actionButton("reset", "Reset Precursor(s)"),style = "margin-top: 10px")),
+                                      fluidRow(column(6,actionButton("reset", "Reset Assignments"),style = "margin-top: 10px")),
                                       fluidRow(column(12,switchInput("supersmooth_I_set","Smoother",value = F),style="margin-top:20px")),
                                       fluidRow(column(12,switchInput("CenterPeak",label = "Center Peak",width="auto")))
                                     ),
@@ -2640,25 +2640,28 @@ server <- function(input, output, session){
     print("Export: iterating entries")
     anaexport <<- analyzedList()
     dbp <<- dbpath()
+    FDRpep <- input$FDRpep
+    MinPeakWidth_vec =input$MinPeakWidth
+    MaxPeakWidth_vec =input$MaxPeakWidth
+    supersmooth_bw_set_vec = input$supersmooth_bw_set
+    ApplyMaximumWidth_vec =   input$ApplyMaximumWidth
     for(i in 1:length(anaexport)){
-      
-      
       fifu <- anaexport[i]
+      cat("\rworking on ",fifu)
       validate(need(file.exists("settings"),"No valid directory."))
       
       setwd("settings")
       finame <- gsub(".txt$","",fifu)
-      # print(finame)
-      print("Loading Stuff")
+      # print("Loading Stuff")
       if(file.exists(finame)){
         load(finame)
       }else{
         inputList <- inputListStdSet
       }
       
-      print("Export: Creating DP Table")
+      # print("Export: Creating DP Table")
       # Creating DP Table
-      inputList$FDR <- input$FDRpep
+      inputList$FDR <- FDRpep
       if(length(session) > 0){
         progress$set(message = 'Export, working on:',
                      detail = finame,value = i)
@@ -2675,10 +2678,10 @@ server <- function(input, output, session){
       
       
       if(any(PeaksNameRatin== dblistT(dbp))){
-        print("check Rating")
+        # print("check Rating")
         PrecursorRating <- dbread(PeaksNameRatin,db = dbp)$rating
         # dbread(PeaksName,dbpath)
-        print("Found Rating")
+        # print("Found Rating")
         if(length(PrecursorRating) == 0){
           PrecursorRating <- "not set"
         }
@@ -2699,7 +2702,7 @@ server <- function(input, output, session){
       # Loop is to account several Peak tables caused by different checked PeakWidths in the database, need to manually be selected afterwards
       # print("Export: PeakCount")
       try(rm("tempa"))
-      dbp <- dbpath()
+      # dbp <- dbpath()
       
       for(PeakCount in 1:LoopCount){
         tempa <<- dbread(x = fifu,dbp)
@@ -2713,7 +2716,7 @@ server <- function(input, output, session){
         if(dim(tempa)[1]>=minthresh){
           
           if(length(TYPIES) > 0){
-            print("FOUND")
+            # print("FOUND")
             # tempa$SCA_mz_fdr <- NULL # compatibility with datasets analyzed with different versions
             # tempa$SCAfdr <- NULL# compatibility with datasets analyzed with differents
             # tempa$FDR_DL_all <- NULL# compatibility with datasets analyzed with differents
@@ -2730,7 +2733,7 @@ server <- function(input, output, session){
             # dbp <- dbpath()
             tempa$RT_Used <- tempa$RT_min
             tempa$FDR <- tempa$FDR_RF_all
-            FDRcut <- input$FDRpep
+            FDRcut <- FDRpep
             CANDIDATE_RT <- RTcandidatesFun(list(tempa),FDRcut)
             LI <- list(tempa)
             names(LI) <- fifu
@@ -2744,13 +2747,13 @@ server <- function(input, output, session){
             #                             ApplyMaximumWidth = input$ApplyMaximumWidth
             # )
             DPlist_XIC <- DetectPeakWrapper(ana = ana,CANDIDATE_RT = CANDIDATE_RT,dbp = dbp,
-                                        RetentionTimeWindow = RTwin,QType = "Intensities",Reanalysis = T,
-                                        RT_BASED_onbestScore = T,
-                                        MinPeakWidth=input$MinPeakWidth,
-                                        MaxPeakWidth=input$MaxPeakWidth,
-                                        supersmooth_I_set = F,#input$supersmooth_I_set,
-                                        supersmooth_bw_set = input$supersmooth_bw_set,
-                                        ApplyMaximumWidth = input$ApplyMaximumWidth
+                                            RetentionTimeWindow = RTwin,QType = "Intensities",Reanalysis = T,
+                                            RT_BASED_onbestScore = T,
+                                            MinPeakWidth=MinPeakWidth_vec,
+                                            MaxPeakWidth=MaxPeakWidth_vec,
+                                            supersmooth_I_set = F,#input$supersmooth_I_set,
+                                            supersmooth_bw_set = supersmooth_bw_set_vec,
+                                            ApplyMaximumWidth =  ApplyMaximumWidth_vec
             )
             # DPlist_I <- DetectPeakWrapper(LI,CANDIDATE_RT,dbp,RetentionTimeWindow,"Intensities",Reanalysis = T)
             # DPlist_XIC <- DetectPeakWrapper(LI,CANDIDATE_RT,dbp,RetentionTimeWindow,"XIC",Reanalysis = T)
@@ -2771,7 +2774,7 @@ server <- function(input, output, session){
             dbl <- dblistT(dbp)
             # print(dbl)
             if(any(dbl==transname)){
-              print("FoundTrans")
+              # print("FoundTrans")
               dbp <- dbpath()
               TransSaved <- NULL
               try(selec <- unlist(dbread(gsub("^PEAKS","TRANS",transname),db =dbp)))
@@ -2866,7 +2869,7 @@ server <- function(input, output, session){
               AddInf[length(AddInf)] <- gsub(".txt","",AddInf[length(AddInf)])
               if(length(AddInf)< 6){
                 AddInf <- c(AddInf,rep(NA,6-length(AddInf)))
-
+                
               }
               if(length(AddInf)> 6){
                 AddInf[6] <- paste(AddInf[6:AddInf[length(AddInf)]],collapse = "_")
@@ -2917,7 +2920,7 @@ server <- function(input, output, session){
         }
       }
       
-    }
+    }    
     print("Export: longtab")
     try({
       # longtab <- fread(fipath,sep = "\t",stringsAsFactors = F)
@@ -2958,6 +2961,7 @@ server <- function(input, output, session){
         
       })
     })
+    showNotification("Finished Export. You can find the tables in the export folder in your experiment location.",duration = NULL,type = "message")
   })
   
   

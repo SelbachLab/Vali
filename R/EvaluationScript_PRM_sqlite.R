@@ -4949,11 +4949,11 @@ RTcandidatesFun <- function(ana,FDRcutoff,RTranges = NULL,supersmooth=F,supersmo
   
   
   # Determining best Peaks after FDR CutOff
-  print("Determining best Peak")
+  # print("Determining best Peak")
   
   # Extracting available RawFiles
   RF <- unique(unlist(sapply(ana,function(x){x$rawfile})))
-  print("COnverting RTcandidates")
+  # print("COnverting RTcandidates")
   # Converting RTcandidateslist to table
   tempfunCOMBIALL <<- c()
   hum <- lapply(RF,function(rf){
@@ -6344,7 +6344,7 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
   
   transitions[transitions == -1] <- 0
   transitions$rawfile <- NULL
-  print(paste(Sys.time(),"Running Detect Peak"))
+  # print(paste(Sys.time(),"Running Detect Peak"))
   
   
   
@@ -6369,7 +6369,7 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
   
   if(length(presetQuantiles) != 2&length(Seli) > 0){
     rm("Peaks")
-    print("Peak Detection")
+    # print("Peak Detection")
     Peaks <- PeakDetection(transitions,RT.DetectPeak,movavg_window=5,movavg_type="t",ZeroSmooth = F,Diff_Smooth = F,supersmooth_I = supersmooth_I_set,supersmooth_bw = supersmooth_bw_set)
     # Peaks <<- PeakDetection(transitions,RT.DetectPeak,movavg_window=5,movavg_type="t",ZeroSmooth = F,Diff_Smooth = F,supersmooth_I = F)
     scores <- scores
@@ -6519,13 +6519,16 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
         #   qua <- qua[,.(quantile(start,0.1),quantile(end,0.9),median(peak,na.rm = T))]
         
       }
-      if(diff(range(qua[1:2]))<MinPeakWidth){
-        if(abs(diff(range(qua[c(1,3)])))<MinPeakWidth/2){
-          qua[1] <- qua[3]-MinPeakWidth/2
+      if(all(!is.na(qua))){
+        if(diff(range(qua[1:2]))<MinPeakWidth){
+          if(abs(diff(range(qua[c(1,3)])))<MinPeakWidth/2){
+            qua[1] <- qua[3]-MinPeakWidth/2
+          }
+          if(abs(diff(range(qua[c(3,2)])))<MinPeakWidth/2){
+            qua[2] <- qua[3]+MinPeakWidth/2
+          }
         }
-        if(abs(diff(range(qua[c(3,2)])))<MinPeakWidth/2){
-          qua[2] <- qua[3]+MinPeakWidth/2
-        }
+        
       }
     }
     
@@ -6658,15 +6661,15 @@ DetectPeakWrapper <- function(
   it
   x <- ana[[it]]
   dbtaNameVec <- dbtaName(ana,dbp)[it]
-  print(dbtaNameVec)
+  # print(dbtaNameVec)
   if(all(unlist(dblistT(db =dbp)) != dbtaNameVec)|Reanalysis){
     x <- data.table(x)
     temp <- x[rawfile==rawfile[1]]
     # Going through rawfile by rawfile
     DP <- x[,{
-      cat("\r",.GRP,.BY$rawfile)
-      temp <- .SD
-      grp <- .BY
+      # cat("\r",.GRP,.BY$rawfile)
+      temp <<- .SD
+      grp <<- .BY
       temp2 <- temp
       Candidate <- CANDIDATE_RT[CANDIDATE_RT$rawfile == grp$rawfile]
       RTset <- median(Candidate$RT_Used,na.rm=T)
@@ -6685,6 +6688,7 @@ DetectPeakWrapper <- function(
       transidf <- as.data.frame(transidf)
       transidf[transidf==-1]<- 0
       # print("DetectPeak Start")
+      rm("PeakDetected")
       try({PeakDetected <- DetectPeak(rt_pep = Candidate$RT_Used,
                                       Peakwidth = RetentionTimeWindow,
                                       transitions = transidf,
@@ -6693,7 +6697,11 @@ DetectPeakWrapper <- function(
                                       FDR=temp$FDR,
                                       MinPeakWidth = MinPeakWidth,
                                       MaxPeakWidth = MaxPeakWidth,supersmooth_I_set = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set,ApplyMaximumWidth = T
-      )})#$quantile
+      )})
+      if(!exists("PeakDetected")){
+        return(NULL)
+      }
+      #$quantile
       # print(PeakDetected)
       # print("DetectPeak Finished")
       
@@ -6938,7 +6946,7 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
   RatioCalc <-peaks[,{
     # Plot <- T
     
-    
+    cat("\r PeakView of",.GRP)
     
     
     hm <- .SD
@@ -7253,8 +7261,10 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
       RatioOut3 <- NULL
     }
     # print("")
-    print(paste("First Round",unique(RatioOut3$Label1)))
+    # print(paste("First Round",unique(RatioOut3$Label1)))
     # RatioOut3 <<- RatioOut3
+    OrderFun <- hm[,unique(variable),variable]$variable
+    hm$variable <- factor(hm$variable,OrderFun,OrderFun)
     if(length(RatioOut3)>0){
       ra <- log10(HUM$IntensityRatio)
       sel <- is.na(ra)|is.infinite(ra)
@@ -7267,6 +7277,9 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
       RatioOut3$Label2 <- as.character(RatioOut3$Label2)
       RatioOut3$Info <- as.character(RatioOut3$Info)
       
+    }else{
+      # g <- ggplot(hm,aes(RT_min,value,group=variable,color=variable))+geom_line()+ylab("Intensity")+xlab("Intensity [min]")
+      # print(g)
     }
     
     
@@ -7284,6 +7297,8 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
   RatioCalc$Info <- RA
   RatioCalc
 }
+# Ratios <- PeaksProcessingLM(peaks)
+
 Fit.Fun <- function(x,y,rangeval = NULL,add.edges=T,iterations = 100){
   xtemp <<- x
   ytemp <<- y
