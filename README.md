@@ -7,6 +7,8 @@ Vali analyzes PRM raw files acquired by Thermo-Fisher Orbitrap instruments. It i
     * [MS .Net Framework](https://dotnet.microsoft.com/download)
 * Packages:
     * list follows
+ * You must set '.' as decimal seperator in your system. 
+
 ## Getting Started
 1. Start Vali
     * Vali.bat (Windows)
