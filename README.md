@@ -36,7 +36,8 @@ Press the Export button in the upper right Corner. After all sequences have been
 * The fragment selection and exclusion does not work properly. The current workarround is to document bad transitions in order to remove them manually in a downstream analysis step. 
 
 ## Citation
-Picky:
-Zauber et al. (2018). Nature Methods. http://doi.org/10.1038/nmeth.4607
+If you use Vali alone, please cite this git, if you use Vali in combination with Picky please also cite Picky:
+
+* Zauber et al. (2018). Nature Methods. http://doi.org/10.1038/nmeth.4607
 
 
