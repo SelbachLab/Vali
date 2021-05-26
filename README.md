@@ -32,7 +32,7 @@ Press the Export button in the upper right Corner. After all sequences have been
 4. Ratios.txt (for SILAC pairs)
 
 ## Known issues
-* The MS1 read out function is at the moment not working due to substantial changes in the internal data management.
+* The MS1 read out function and the AreaSearch function is at the moment not working due to substantial changes in the internal data management.
 * The fragment selection and exclusion does not work properly. The current workarround is to document bad transitions in order to remove them manually in a downstream analysis step. 
 
 ## Citation
