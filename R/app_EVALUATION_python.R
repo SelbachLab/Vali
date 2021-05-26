@@ -67,7 +67,7 @@ print("Evaluating Path 2")
 SystemPath <- gsub("\\\\","/",SystemPath)
 SystemPath <- gsub("/$","",SystemPath)
 
-
+SystemPath <<- SystemPath
 
 
 pythonpath <- c(paste(SystemPath,"PortablePython2.7.6.1/App/python.exe",sep = "/"),paste(SystemPath,"python-3.6.6.amd64/python.exe",sep = "/"))
