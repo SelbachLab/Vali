@@ -1,5 +1,5 @@
 # Vali
-Vali analyzes PRM raw files acquired by Thermo-Fisher Orbitrap instruments. It is optimized to work with [Picky](https://picky.mdc-berlin.de) generated spectrum libraries and provides semi-automated peak determination. All peak assignments can be manually adjusted or corrected. Subsequently, quantified fragment peaks can be exported for a further analysis by the user.
+Vali analyzes PRM raw files acquired by Thermo-Fisher Orbitrap instruments. It is optimized to work with [Picky](https://picky.mdc-berlin.de) generated spectrum libraries and provides semi-automated peak determination. All peak assignments can be manually adjusted or corrected. Subsequently, quantified fragment peaks can be exported as tab delimited text files.
 ## Requirements
 * R > 4.0.3
 * [RawDiag Requirements](https://github.com/fgcz/rawDiag):
@@ -7,6 +7,8 @@ Vali analyzes PRM raw files acquired by Thermo-Fisher Orbitrap instruments. It i
     * [MS .Net Framework](https://dotnet.microsoft.com/download)
 * Packages:
     * list follows
+ * You must set '.' as decimal seperator in your system. 
+
 ## Getting Started
 1. Start Vali
     * Vali.bat (Windows)
@@ -30,11 +32,12 @@ Press the Export button in the upper right Corner. After all sequences have been
 4. Ratios.txt (for SILAC pairs)
 
 ## Known issues
-* The MS1 read out function is at the moment not working due to substantial changes in the internal data management.
+* The MS1 read out function and the AreaSearch function is at the moment not working due to substantial changes in the internal data management.
 * The fragment selection and exclusion does not work properly. The current workarround is to document bad transitions in order to remove them manually in a downstream analysis step. 
 
 ## Citation
-Picky:
-Zauber et al. (2018). Nature Methods. http://doi.org/10.1038/nmeth.4607
+If you use Vali alone, please cite this git, if you use Vali in combination with Picky please also cite Picky:
+
+* Zauber et al. (2018). Nature Methods. http://doi.org/10.1038/nmeth.4607
 
 

@@ -139,11 +139,11 @@ PrepareTransitionList <- function(mainPath,maxquant,inclusionList,ppm = 10,ppm2 
   # RawFilePath <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20191220_MVB_SILAC_PRM"
   # InclusionlistPath <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20191220_MVB_SILAC_PRM/Picky_Export_PRM_Thermo_Q_Exactive-2"
   # stop()
-  mainPath <<- mainPath
-  inclusionList <<-inclusionList
-  ppm <<- ppm
-  ppm2 <<- ppm2
-  useDIA <<- useDIA
+  # mainPath <<- mainPath
+  # inclusionList <<-inclusionList
+  # ppm <<- ppm
+  # ppm2 <<- ppm2
+  # useDIA <<- useDIA
   Extract_Intensities_Raw(RawFilePath = mainPath,InclusionlistPath = inclusionList,ppm1 = ppm,
                           ppm2 =ppm2,useDIA = useDIA,session=session,threads = threads)
   # print("Start Compiling Database")
@@ -315,18 +315,18 @@ ExpandFragmentlist <- function(PEPTIDESexport,precursorInfo,Tselect,Reverse = F)
   if(file.exists(name_pep)){
     temp <- fread(name_pep,sep = "\t",nrows = 1)
     if(length(colnames(temp))!=length(colnames(PEPTIDESexport))){
-      PEPTIDESexport <<- PEPTIDESexport
-      precursorInfo <<- precursorInfo
-      Tselect <<- Tselect
+      # PEPTIDESexport <<- PEPTIDESexport
+      # precursorInfo <<- precursorInfo
+      # Tselect <<- Tselect
       fwrite(PEPTIDESexport,paste("Wrong",name_pep,sep="_"),sep = "\t",append = F)
       
       stop("Length of tables differs.")
       
     }else{
       if(any(colnames(temp)!=colnames(PEPTIDESexport))){
-        PEPTIDESexport <<- PEPTIDESexport
-        precursorInfo <<- precursorInfo
-        Tselect <<- Tselect
+        # PEPTIDESexport <<- PEPTIDESexport
+        # precursorInfo <<- precursorInfo
+        # Tselect <<- Tselect
         fwrite(PEPTIDESexport,paste("Wrong",name_pep,sep="_"),sep = "\t",append = F)
         
         stop("Different Column Names in tables.")
@@ -1306,8 +1306,8 @@ RawDiag_Vali_Extracter_DIA_v20201017 <- function(r,dirout,outpath,ST,TT,TTdec,pp
     
     # this loop goes through the raw files
     setwd(outpath)
-    outpath <<- outpath
-    r <<- r
+    # outpath <<- outpath
+    # r <<- r
     source(paste(SystemPath,"R/EvaluationScript_PRM_sqlite.R",sep = "/"))
     system.time(RAW <- read.raw(file = r,rawDiag = F))
     dir.create(dirout)
@@ -1381,7 +1381,7 @@ RawDiag_Vali_Extracter_DIA_v20201017 <- function(r,dirout,outpath,ST,TT,TTdec,pp
         progress$set(message = r,
                      detail = "Scanning Fragment Masses",value = it)
       }
-      it <<- it
+      # it <<- it
       lib_precursor <- PrecursorsWindows[,it]
       precursorInfo <- ST[it,]
       if(ShowInfo){
@@ -1534,8 +1534,8 @@ RawDiag_Vali_Extracter_DIA_v20201017 <- function(r,dirout,outpath,ST,TT,TTdec,pp
         
         
         Matched <- ST[SpecID==precursorInfo$SpecID,{
-          gr <<-.BY
-          wi <<- ppmWindow(gr$mz,ppm1)
+          gr <-.BY
+          wi <- ppmWindow(gr$mz,ppm1)
           if((wi[1]<= mean(lib_precursor)&wi[2]>= mean(lib_precursor))|DIA){
             # Extract Masses
             if(ShowInfo){
@@ -1591,8 +1591,8 @@ RawDiag_Vali_Extracter_DIA_v20201017 <- function(r,dirout,outpath,ST,TT,TTdec,pp
             
             # charge <- which(colnames(PEPTIDES)=="charge")
             decoys <- grepl("_DECOY$",colnames(PEPTIDES_init),perl = T)
-            PEPTIDES_init <<- PEPTIDES_init
-            Tselecttemp <<- Tselect
+            PEPTIDES_init <- PEPTIDES_init
+            Tselecttemp <- Tselect
             DECOYPEPTIDES <- PEPTIDES_init[,.SD,.SDcols = colnames(PEPTIDES_init)[decoys]]
             PEPTIDES <- PEPTIDES_init[,.SD,.SDcols = colnames(PEPTIDES_init)[!decoys]]
             DECOYPEPTIDES$scan <- PEPTIDES_init$scan
@@ -1723,8 +1723,8 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
     
     # this loop goes through the raw files
     setwd(outpath)
-    outpath <<- outpath
-    r <<- r
+    # outpath <<- outpath
+    # r <<- r
     source(paste(SystemPath,"R/EvaluationScript_PRM_sqlite.R",sep = "/"))
     system.time(RAW <- read.raw(file = r,rawDiag = F))
     dir.create(dirout)
@@ -1828,7 +1828,7 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
           progress$set(message = r,
                        detail = "Scanning Fragment Masses",value = it)
         }
-        it <<- it
+        # it <<- it
         lib_precursor <- PrecursorsWindows[,it]
         precursorInfo <- ST[it,]
         if(ShowInfo){
@@ -1981,8 +1981,8 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
           
           
           Matched <- ST[SpecID==precursorInfo$SpecID,{
-            gr <<-.BY
-            wi <<- ppmWindow(gr$mz,ppm1)
+            gr <-.BY
+            wi <- ppmWindow(gr$mz,ppm1)
             if((wi[1]<= mean(lib_precursor)&wi[2]>= mean(lib_precursor))|DIA){
               # Extract Masses
               if(ShowInfo){
@@ -2038,8 +2038,8 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
               
               # charge <- which(colnames(PEPTIDES)=="charge")
               decoys <- grepl("_DECOY$",colnames(PEPTIDES_init),perl = T)
-              PEPTIDES_init <<- PEPTIDES_init
-              Tselecttemp <<- Tselect
+              PEPTIDES_init <- PEPTIDES_init
+              Tselecttemp <- Tselect
               DECOYPEPTIDES <- PEPTIDES_init[,.SD,.SDcols = colnames(PEPTIDES_init)[decoys]]
               PEPTIDES <- PEPTIDES_init[,.SD,.SDcols = colnames(PEPTIDES_init)[!decoys]]
               DECOYPEPTIDES$scan <- PEPTIDES_init$scan
@@ -2432,7 +2432,7 @@ Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFil
   
   
   DECOYS <- lapply(DECOYS,function(x){
-    x <<- x
+    x <- x
     Carbamido <- unlist(gregexpr("C",x))
     massshift <- 0
     if(all(Carbamido!=-1)){
@@ -2466,8 +2466,8 @@ Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFil
     
     cat("\r",.GRP)
     
-    temp <<- .SD
-    GR <<- .BY
+    temp <- .SD
+    GR <- .BY
     # stop()
     pep <- DECOYS[names(DECOYS)==GR$SpecID][[1]]
     pep <- (pep)
@@ -2681,7 +2681,7 @@ try({RawDiag_Vali_Extracter_DIA(raws[as.numeric(args[1])],dirout=dirout,outpath=
 ## CompilingDatabase Main Function
 CompilingDatabase <- function(mainPath,maxquant = NULL,session = NULL,test = F,SystemPath=SystemPath,threads=1){
   
-  mainPath <<- mainPath
+  # mainPath <<- mainPath
   
   if(length(session) != 0){
     progress <- Progress$new(session,min=0, max=8)
@@ -2759,7 +2759,7 @@ CompilingDatabase <- function(mainPath,maxquant = NULL,session = NULL,test = F,S
       
       sapply(1:length(unib),function(b,session,progress){
         
-        b <<- b
+        # b <<- b
         if(length(session)>0){
           # print("hump")
           progress$set(message = b,value = b)
@@ -3146,7 +3146,7 @@ CompilingDatabase <- function(mainPath,maxquant = NULL,session = NULL,test = F,S
   Prec <- lapply(Precursors,function(x){
     xsvecdfcor <- NA
     try({
-      x <<- x
+      # x <<- x
       # stop()
       cat("\r",x)
       xs <- dbReadTable(db,x)
@@ -3170,7 +3170,7 @@ CompilingDatabase <- function(mainPath,maxquant = NULL,session = NULL,test = F,S
       RatingsNames <- paste("RATING_PEAKS",gsub("^mz","",x),sep= "")
       sel <- RatingsNames==Ratings
       if(any(sel)){
-        RATING <<- dbReadTable(db,RatingsNames)
+        RATING <- dbReadTable(db,RatingsNames)
         RATING <- RATING$rating
         
       }else{RATING <- ""}
@@ -3266,8 +3266,8 @@ PoissonGLM <- function(x,breaks=30){
 }
 ### FDR Assessment
 FDR_Calculation <- function(forScore,revScore,plotdata = T,byvec=0.1,amplifier = 100,AddMaximalValue = T,usePoissonModel = F,sparvec = 0.1){
-  forScore<<- forScore
-  revScore <<- revScore
+  # forScore<<- forScore
+  # revScore <<- revScore
   
   if(usePoissonModel){
     
@@ -3371,7 +3371,7 @@ FDR_Calculation <- function(forScore,revScore,plotdata = T,byvec=0.1,amplifier =
   # }
   # byvec <- 0.1
   AverageScore<- sapply(seq(0,3,by=byvec),function(x){
-    x <<- x
+    # x <<- x
     cat("\r AVERAGE FDR",x)
     c(x+byvec/2,median(jitter(FDR)[SCORE>x&SCORE<(x+byvec)],na.rm = T))
   })
@@ -3482,7 +3482,7 @@ ScoreFDR_Loess <- function(db,Scores = "RF_Scores",set_amplifier=10){
     
     FDR_MD <-   lapply(grep("^mz",dbListTables(db),value = T),function(i){
       cat("\r",i)
-      i <<- i
+      # i <<- i
       par(mfrow= c(1,2))
       mzt <- dbReadTable(db,i)
       # mztrev <- NULL
@@ -3537,7 +3537,7 @@ predict.FDRCORRECTED <- function(object,predictionVector,digits = 5,negativeToZe
   # object <<- object
   unipredResult <- sapply(unipred,function(x){
     # get boundaries
-    x <<- x
+    # x <<- x
     upper <- min(object$x[object$x>=x],na.rm = T)
     
     lower <- max(object$x[object$x<=x],na.rm = T)
@@ -3625,7 +3625,7 @@ ScoringWrapper_broken <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh2
     print("Extracting Data for Scoreprediction")
     
     sapply(1:length(fi),function(itx){
-      itx <<- itx
+      # itx <<- itx
       mzname <- fi[[itx]]
       cat("\rExtracting Tables:",round(itx/length(fi)*100,1),"%     ")
       if(length(session)>0){
@@ -3703,7 +3703,7 @@ ScoringWrapper_broken <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh2
     })
     
     sapply(1:length(fi),function(itx){
-      itx <<- itx
+      # itx <<- itx
       mzname <- fi[[itx]]
       cat("\rExtracting Tables:",round(itx/length(fi)*100,1),"%     ")
       if(length(session)>0){
@@ -4165,8 +4165,8 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
           tr <- try({mztableSelect <- MakeFeatureTable(mztable,defaultPeptideLength =nchar(SEQUENCE),mzname = mzname,mdpar=Models.h2o$DeepLearning@parameters$x)})
           if(class(tr)=="try-error"){
             print("error in MakeFeatureTable. Check variables mztable and mzname in function MakeFeatureTable().")
-            mztable <<- mztable
-            mzname <<- mzname
+            # mztable <<- mztable
+            # mzname <<- mzname
             stop(tr)
           }
           if(Reverse){
@@ -4296,7 +4296,7 @@ ScoringWrapper <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh20=F,ses
     
     pdf("Scoring_plots.pdf")
     sapply(1:length(fi),function(itx){
-      itx <<- itx
+      # itx <<- itx
       mzname <- fi[[itx]]
       print(mzname)
       if(length(session)>0){
@@ -4605,7 +4605,7 @@ ValiScoringFunction <- function(tab,group,it=0,parallelization = F,topFragments 
 TimeSeriesLocalCor <- function(x,mztable.s1,width = 5){
   library(data.table)
   library(gtools)
-  FUN <<- mztable.s1[,.SD,.SDcols = x]
+  FUN <- mztable.s1[,.SD,.SDcols = x]
   FUN[FUN == -1] <- NA
   
   names(FUN) <- c("a","b")
@@ -4653,7 +4653,7 @@ CompileMS <- function(wd,dbname = "VALIdb",folder_PRM_Matches ="PRM_Analyzer_Mat
     }
     
     it <<- it+1
-    path <<- path
+    # path <<- path
     
     cat("\r",basename(path),it,length(unique(basename(uni))))
     
@@ -4748,7 +4748,7 @@ CompileMS <- function(wd,dbname = "VALIdb",folder_PRM_Matches ="PRM_Analyzer_Mat
     
     ms1scan <- unique(ms1scan)
     ms1scan[,MS1_SCA:={
-      temp <<- .SD
+      temp <- .SD
       
       
       AD <- temp[,{.SD},.SDcols=grep("^mz.",colnames(temp),value = T)]
@@ -4989,14 +4989,14 @@ plotTransitions <- function(Index,x,yl = NULL,add = F,TransitionColors = T,col =
   }
   # add <<- add
   TransitionColors <-T
-  lwdpoints <<- lwdpoints
+  # lwdpoints <<- lwdpoints
   ylim <- range(as.numeric(unlist(x)),na.rm = T)
   Index <- as.numeric(Index)
   if(length(yl) == 0){
     yl <- ylim
   }
   if(!add){
-    Ppos <<- Ppos
+    # Ppos <<- Ppos
     plot(Index,Index,type = "n",ylim = yl,...)
     if(length(Ppos) > 0){
       rect(xleft = unfactor(Ppos[1]),xright = unfactor(Ppos[2]),ybottom = par()$usr[3],ytop = par()$usr[4],col = "#20202010",border = NA)
@@ -5007,7 +5007,7 @@ plotTransitions <- function(Index,x,yl = NULL,add = F,TransitionColors = T,col =
   if(addGrid){
     grid()
   }
-  xtemp <<- x
+  xtemp <- x
   for(i in 1:dim(x)[2]){
     if(length(selected_transitions)==0){
       plot.transition <- T
@@ -5415,7 +5415,7 @@ plot.analyzed.transition <- function(x,type = "Volcano",yl = NULL,xl = NULL,Ppos
           colset <- col
           
         }
-        ra <<- ra
+        # ra <<- ra
         raset <- aggregate(as.numeric(ra),list(aset),max,na.rm = T)$x
         
         bset <- aggregate(b,list(aset),max,na.rm = T)$x
@@ -5631,7 +5631,7 @@ plot.TransplotList <- function(x,SimultaneousMassShiftvec= T,maximalnumber=500,s
       # print(PeaksSel)
       # abline(h = PeaksSel)
       pr <- par()$usr
-      yd<<-pr[3]-diff(pr[3:4])*0.025
+      yd<-pr[3]-diff(pr[3:4])*0.025
       # Peaks <<- Peaks
       points(x$Peaks,rep(yd,length(x$Peaks)),pch = 2,xpd = NA,col ="grey",cex = 1)
       
@@ -5716,7 +5716,7 @@ ProteinQuan <- function(PeaksTable,name="",ValuesAcrossSampleThreshold = 1,log10
 }
 plotPeptideList <- function(PeptideList,colmap = NULL,alpha = 0.01){
   # PeptideList <<-PeptideList
-  colmap <<- colmap
+  # colmap <<- colmap
   for(tempi in 1:length(PeptideList)){
     tempd <- PeptideList[tempi]
     for(hmpi in  1:length(tempd)){
@@ -6002,8 +6002,8 @@ ThresholdingAlgo <- function(y,lag,threshold,influence) {
 }
 ## Called by DetectPeakWrapper
 infoquantileParser <- function(infoquantile){
-  baef<<- infoquantile
-  infoquantile <- baef
+  # baef<<- infoquantile
+  # infoquantile <- baef
   if(dim(infoquantile)[1] > 0){
     if(length(infoquantile$FDR_Choosen) == 0){
       infoquantile$FDR_Choosen <- infoquantile$SCAfdr
@@ -6126,8 +6126,8 @@ Neighbour_Mean_imputation <- function(rawda){
     NAs <- which(!is.na(xu))
     if(any(is.na(xu))){
       repi <- sapply(1:length(xu),function(y){
-        v1 <<- xu[y]
-        y <<- y
+        v1 <- xu[y]
+        y <- y
         if(is.na(v1)){
           mi <- max(NAs[NAs<y])
           ma <- min(NAs[NAs>y])
@@ -6146,12 +6146,13 @@ Neighbour_Mean_imputation <- function(rawda){
   rawda
 }
 PeakDetection <- function(transitions,RTs,movavg_window=5,movavg_type="t",QualityPosition=NA,summary_bw=0.1,ZeroSmooth=T,Diff_Smooth=T,supersmooth_I=F,supersmooth_bw=0.2){
-  transitionstemp <<- transitions
-  movavg_type <<- movavg_type
-  ZeroSmooth <<- ZeroSmooth
-  Diff_Smooth <<- Diff_Smooth
-  RTs <<- RTs
+  transitionstemp <- transitions
+  # movavg_type <<- movavg_type
+  # ZeroSmooth <<- ZeroSmooth
+  # Diff_Smooth <<- Diff_Smooth
+  # RTs <<- RTs
   # RTs <- RT.DetectPeak
+  RT.DetectPeak <- RTs 
   if(ZeroSmooth){
     transitionstemp <- apply(transitionstemp,2,function(x){
       x <- x
@@ -6222,7 +6223,7 @@ PeakDetection <- function(transitions,RTs,movavg_window=5,movavg_type="t",Qualit
                end=(quantile(RTs[V4],probs=0.9,na.rm = T)))
     
   },.(V2=round(RTs[V2],1))]
-  tfu <<- tfu
+  # tfu <<- tfu
   d <- density(tfu$V2[tfu$s>quantile(tfu$s,0.5)],bw=summary_bw)
   # plot(d)
   # points(RTs,transitions$y12/max(transitions$y12),type="l")
@@ -6499,7 +6500,7 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
     if(ApplyMaximumWidth){
       PeakBoundaries_Algo <- "CutOff"
       if(PeakBoundaries_Algo=="CutOff"){
-        qua <<- qua
+        # qua <<- qua
         if(all(!is.na(qua))){
           if(diff(qua[1:2])>MaxPeakWidth){
             # checking to the left
@@ -6668,8 +6669,8 @@ DetectPeakWrapper <- function(
     # Going through rawfile by rawfile
     DP <- x[,{
       # cat("\r",.GRP,.BY$rawfile)
-      temp <<- .SD
-      grp <<- .BY
+      temp <- .SD
+      grp <- .BY
       temp2 <- temp
       Candidate <- CANDIDATE_RT[CANDIDATE_RT$rawfile == grp$rawfile]
       RTset <- median(Candidate$RT_Used,na.rm=T)
@@ -6950,13 +6951,13 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
     
     
     hm <- .SD
-    hmTemp <<- hm
+    hmTemp <- hm
     # stop()
     if(Remove_y1){
       hm <- hm[variable!= "y1"]
       
     }
-    gr <<- .BY
+    gr <- .BY
     # Obtain Label combinations:
     hm$Label[is.na(hm$Label)] <- "light"
     
@@ -6988,7 +6989,7 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
         # hmsel <- .SD
         
         Ratios <- apply(CombnTab,2,function(sel){
-          sel <<- sel
+          # sel <<- sel
           
           sel <- sort(sel,decreasing = T)
           s1 <- hmsel[mz==sel[2],] # label one # Light
@@ -7051,7 +7052,7 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
           # 
           
           
-          SimpleFit <<- Fun.Fit.lm(s1x,s1y,s2x,s2y,labelnames = c(sel[2],sel[1]))
+          SimpleFit <- Fun.Fit.lm(s1x,s1y,s2x,s2y,labelnames = c(sel[2],sel[1]))
           mtext(unlist(.BY)[1],3,line = 0,cex = 0.4)
           
           # fit1 <- Fit.FunG(s1x,s1y,rangeval = commonrange,iterations=100)
@@ -7062,8 +7063,8 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
           #   lines(fit2$dffit,col = 2)
           # }
           
-          x <<- SimpleFit$MappedIntensities$x
-          y <<- SimpleFit$MappedIntensities$y
+          x <- SimpleFit$MappedIntensities$x
+          y <- SimpleFit$MappedIntensities$y
           
           # x <- fit1$dffit$y
           # y <- fit2$dffit$y
@@ -7153,7 +7154,7 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
             
           }
           
-          LIFun <<- LI
+          # LIFun <<- LI
           LI
           
         })
@@ -7164,7 +7165,7 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
       # HUMbackup <<- HUM
       
       # HUM <- HUMbackup
-      HUM <<- data.table(HUM)
+      HUM <- data.table(HUM)
       # stop()
       HUM$rf <- gr$rawfile
       # print("STUFF1")
@@ -7300,8 +7301,8 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
 # Ratios <- PeaksProcessingLM(peaks)
 
 Fit.Fun <- function(x,y,rangeval = NULL,add.edges=T,iterations = 100){
-  xtemp <<- x
-  ytemp <<- y
+  xtemp <- x
+  ytemp <- y
   if(add.edges){
     if(length(rangeval)!=2){
       xr <- range(x,na.rm = T)
@@ -7745,8 +7746,8 @@ SilacConverter <-function(ilpath,ShiftTableIni){
 
 # Transfers Identification between PickyAnalyzer Databases
 transferPeaks_db <- function(db1,db2){
-  db1 <<- db1
-  db2 <<- db2
+  # db1 <<- db1
+  # db2 <<- db2
   db1 <- dbConnect(SQLite(),db1)
   db2 <- dbConnect(SQLite(),db2)
   
