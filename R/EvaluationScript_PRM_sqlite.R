@@ -3486,13 +3486,14 @@ CompilingDatabase <- function(mainPath,maxquant = NULL,session = NULL,test = F,S
   }
   # test <- dbReadTable(db,"mz530.770195_2_GVSINQFCK#heavy_sp|Q9CQF0_MRPL11_607482")
   # scoring function
-  ScoringWrapper_parallelized(db,SystemPath = SystemPath,Parallelh20 = F,session,ReScore = F,threads = threads)#requires SystemPath
+  ScoringWrapper_parallelized(db,SystemPath = SystemPath,Parallelh20 = F,session = session,ReScore = F,threads = threads,progress = progress)#requires SystemPath
   # FDR function, returns the model and a Score cutoff at p = 0.01
   if(length(session) >0){
     
     progress$set(message = 'FDR',
                  detail = "Model",value = 2)
   }
+  
   print("Estimating FDR")
   ScoreFDR_Loess_md <- ScoreFDR_Loess(db,set_amplifier = 1)
   
@@ -3553,6 +3554,11 @@ CompilingDatabase <- function(mainPath,maxquant = NULL,session = NULL,test = F,S
     progress2 <- NULL
   }
   # Checking TAbles...
+  if(length(session) >0){
+    
+    progress$set(message = 'FDR',
+                 detail = "Estimating FDR",value = 2)
+  }
   for(it in 1:length(DBtabFor)){
     x <- DBtabFor[it]
     #mz526.74343_2_GDNIYEWR_P51965;P51965-2;P51965-3;Q969T4;Q96LR5_UBE2E1;UBE2E2;UBE2E3_698316 95;P10636-9_MAPT_657300 114
@@ -4481,7 +4487,7 @@ ScoringWrapper_broken <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh2
   dev.off()
   return(FUN)
 }
-ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh20=F,session = NULL,ReScore=F,threads=3){
+ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh20=F,session = NULL,progress=NULL,ReScore=F,threads=3){
   FUN <-try({
     # mdpath <- list.files(paste(SystemPath,"Model",sep = "/"),pattern = "ScoringModel_Full.rda$",full.names =T)
     mdpath <- list.files(paste(SystemPath,"Model",sep = "/"),pattern = "model_",full.names =T)
@@ -4489,6 +4495,12 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
     if(length(mdpath)==0){
       stop("NO MODELS")
     }
+    try({if(length(session)>0&length(progress)>0){
+      print("Progress Test")
+      progress$set(message = 'FDR',
+                   detail = "Loading FDR model",value = 2)
+    }})
+    
     if(require(h2o)){
       h2o.init(nthreads = threads, max_mem_size = '2g', ip = "127.0.0.1", port = 4321)
       # 
@@ -4508,23 +4520,16 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
       stop()
     }
     
-    # if(class(rf) == "randomForest"){
-    #   Features <- rownames(rf$importance)
-    #   
-    # }else{
-    #   rf<- sv
-    #   Features <- colnames(sv$SV)
-    # }
     
     fi <- grep("^mz|^revmz",dbListTables(db),value = T)
     
     
     graphics.off()
     
-    if(length(session)>0){
-      progressScoring <- Progress$new(session,min=0, max=length(fi))
-      on.exit(progressScoring$close())
-    }
+    # if(length(session)>0){
+    #   progressScoring <- Progress$new(session,min=0, max=length(fi))
+    #   on.exit(progressScoring$close())
+    # }
     
     ###### new insert ########
     
@@ -4547,6 +4552,11 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
     Files <- NULL
     RevFiles <- NULL
     print("Starting TempCheckfile")
+    try({if(length(session)>0&length(progress)>0){
+      progress$set(message = 'FDR',
+                   detail = "Generating Featuretable (this will take a while)",value = 2)
+    }})
+    
     try({
       dbNAME <- db@dbname
       wd <- getwd()
@@ -4667,6 +4677,11 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
     
     # temp <- fread("/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/ERIK/20200210_Mito/Picky/20200208_ETC_Picky_Test/QE/PRM_Analyzer_Matches/Temp_CheckFile.txt",sep = "\t",stringsAsFactors = F)
     # Predictin Socres ###########
+    
+    try({if(length(session)>0&length(progress)>0){
+      progress$set(message = 'FDR',
+                   detail = "Predicting Scores",value = 2)
+    }})
     
     print("Predicting Scores and writing to Database")
     scorelist <- list()
