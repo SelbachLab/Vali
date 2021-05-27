@@ -200,8 +200,8 @@ ui <- fluidPage(
                                                                                                       # "GBM_Scores",
                                                                                                       "SCAall",
                                                                                                       "SCAcut",
-                                                                                                      "MatchCount",
-                                                                                                      "CorrelationScoreSumSpecial2"#,
+                                                                                                      "MatchCount"#,
+                                                                                                      #"CorrelationScoreSumSpecial2"#,
                                                                                                       # "DiffSum",
                                                                                                       # "Peaks1",
                                                                                                       # "Peaks2"
