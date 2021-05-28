@@ -2641,10 +2641,10 @@ server <- function(input, output, session){
     anaexport <<- analyzedList()
     dbp <<- dbpath()
     FDRpep <- input$FDRpep
-    MinPeakWidth_vec =input$MinPeakWidth
-    MaxPeakWidth_vec =input$MaxPeakWidth
-    supersmooth_bw_set_vec = input$supersmooth_bw_set
-    ApplyMaximumWidth_vec =   input$ApplyMaximumWidth
+    MinPeakWidth_vec <<- input$MinPeakWidth
+    MaxPeakWidth_vec <<- input$MaxPeakWidth
+    supersmooth_bw_set_vec <<- input$supersmooth_bw_set
+    ApplyMaximumWidth_vec <<-   input$ApplyMaximumWidth
     for(i in 1:length(anaexport)){
       fifu <- anaexport[i]
       cat("\rworking on ",fifu)
@@ -2746,8 +2746,13 @@ server <- function(input, output, session){
             #                             supersmooth_bw_set = input$supersmooth_bw_set,
             #                             ApplyMaximumWidth = input$ApplyMaximumWidth
             # )
-            DPlist_XIC <- DetectPeakWrapper(ana = ana,CANDIDATE_RT = CANDIDATE_RT,dbp = dbp,
-                                            RetentionTimeWindow = RTwin,QType = "Intensities",Reanalysis = T,
+            print("Start DetectPeakWrapper")
+            tempList <- list(tempa)
+            names(tempList) <- fifu
+            tempList <- tempList
+            DPlist_XIC <- DetectPeakWrapper(ana = tempList,CANDIDATE_RT = CANDIDATE_RT,dbp = dbp,
+                                            RetentionTimeWindow = RTwin,QType = "Intensities",
+                                            Reanalysis = F,
                                             RT_BASED_onbestScore = T,
                                             MinPeakWidth=MinPeakWidth_vec,
                                             MaxPeakWidth=MaxPeakWidth_vec,
@@ -2755,6 +2760,8 @@ server <- function(input, output, session){
                                             supersmooth_bw_set = supersmooth_bw_set_vec,
                                             ApplyMaximumWidth =  ApplyMaximumWidth_vec
             )
+            print("End DetectPeakWrapper")
+            
             # DPlist_I <- DetectPeakWrapper(LI,CANDIDATE_RT,dbp,RetentionTimeWindow,"Intensities",Reanalysis = T)
             # DPlist_XIC <- DetectPeakWrapper(LI,CANDIDATE_RT,dbp,RetentionTimeWindow,"XIC",Reanalysis = T)
             # DP <- rbind(DPlist_I[[1]],DPlist_XIC[[1]])
