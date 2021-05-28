@@ -134,26 +134,14 @@ PrepareTransitionList <- function(mainPath,maxquant,inclusionList,ppm = 10,ppm2 
   
   setwd(mainPath)
   
-  # path <- "E:/Projects/20191220_MVB_SILAC_PRM"
-  # inclusionList <- "E:/Projects/20191220_MVB_SILAC_PRM/Picky_Export_PRM_Thermo_Q_Exactive-2/"
-  # RawFilePath <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20191220_MVB_SILAC_PRM"
-  # InclusionlistPath <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20191220_MVB_SILAC_PRM/Picky_Export_PRM_Thermo_Q_Exactive-2"
-  # stop()
-  # mainPath <<- mainPath
-  # inclusionList <<-inclusionList
-  # ppm <<- ppm
-  # ppm2 <<- ppm2
-  # useDIA <<- useDIA
+  
   Extract_Intensities_Raw(RawFilePath = mainPath,InclusionlistPath = inclusionList,ppm1 = ppm,
                           ppm2 =ppm2,useDIA = useDIA,session=session,threads = threads)
   # print("Start Compiling Database")
-  # mainPath <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20200317_MVB_HCT116BenchmarkMix/20200529/HCT/"
   maxquant <- NULL
   # session <- NULL
   wd <- getwd()
-  # mainPath <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/ERIK/20200210_Mito/Picky/NewTest_PRM_TargetDIA/tDIA10"
-  # mainPath <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/ERIK/20200210_Mito/Picky/20200208_ETC_Picky_Test/Exploris_FAIMS"
-  try(RETI <- CompilingDatabase(mainPath,maxquant,session,test = F,SystemPath=SystemPath,threads = threads))
+   try(RETI <- CompilingDatabase(mainPath,maxquant,session,test = F,SystemPath=SystemPath,threads = threads))
   setwd(wd)
   # try({rm(db)})
   
@@ -342,14 +330,7 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
   #   sink("SessionSink.txt",split = T,type="message")
   # }
   #
-  # setwd("/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20200509_targetDIA")
-  # r <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20200509_targetDIA/Raw/Beaker_20200507_HZ_HS_TargetDIA_Test_1.raw"
-  # # r <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/PRM/Ubiquitin/20200202_SILAC_Replicate/Animal_20200206_HZ_SC_PRM_brUbiLP_A_Lys8_1.raw"
-  # dirout <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20200509_targetDIA/Raw/Beaker_20200507_HZ_HS_TargetDIA_Test_1"
-  # outpath <- dirout
-  # ST <- fread("./Picky_Export_FocusDIA_Thermo_Q_Exactive_MIX/SpectraTable.txt",sep = "\t",stringsAsFactors = F)
-  # TT <- fread("Picky_Export_FocusDIA_Thermo_Q_Exactive_MIX/TransitionTable.txt",sep = "\t",stringsAsFactors = F)
-  require(rawDiag)
+   require(rawDiag)
   require(compiler)
   require(data.table)
   require(Peptides)
@@ -366,7 +347,7 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
     setwd(dirout)
     dir.create(rpath <- gsub(".raw$","",basename(r)))
     setwd(rpath)
-    print(paste("Reading RawFile",r))
+    cat(paste("\rReading RawFile",r))
     if(extraSink){
       msgcon <- file("SessionSink.txt", open = "a")
       sink(msgcon,append = T,split = F,type = "message")
@@ -501,8 +482,8 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
           ScansAvailable <- intersect(paste("scans",EVENTS,sep = ""),list.files("scans"))
           ScansMissingNum <- gsub("scans","",ScansMissing)
           ScansAvailableNum <- gsub("scans","",ScansAvailable)
-          print(paste("Scans to read",length(ScansMissing)))
-          print(paste("Loadable Scans",length(ScansAvailableNum)))
+          cat(paste("\rScans to read",length(ScansMissing)))
+          cat(paste("\rLoadable Scans",length(ScansAvailableNum)))
           
           if(length(ScansMissing)>0){
             
@@ -794,708 +775,6 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
   
 }
 
-# RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=10,ShowInfo=F,extraSink=T,SystemPath=NULL,session=NULL,DIA=T,ExtractMS1 = F,SaveScans=T){
-#   # if(extraSink){
-#   #   sink("SessionSink.txt",split = T,type="message")
-#   # }
-#   #
-#   # setwd("/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20200509_targetDIA")
-#   # r <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20200509_targetDIA/Raw/Beaker_20200507_HZ_HS_TargetDIA_Test_1.raw"
-#   # # r <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/PRM/Ubiquitin/20200202_SILAC_Replicate/Animal_20200206_HZ_SC_PRM_brUbiLP_A_Lys8_1.raw"
-#   # dirout <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20200509_targetDIA/Raw/Beaker_20200507_HZ_HS_TargetDIA_Test_1"
-#   # outpath <- dirout
-#   # ST <- fread("./Picky_Export_FocusDIA_Thermo_Q_Exactive_MIX/SpectraTable.txt",sep = "\t",stringsAsFactors = F)
-#   # TT <- fread("Picky_Export_FocusDIA_Thermo_Q_Exactive_MIX/TransitionTable.txt",sep = "\t",stringsAsFactors = F)
-#   require(rawDiag)
-#   require(compiler)
-#   require(data.table)
-#   require(Peptides)
-#   library(RSQLite)
-#   
-#   try({
-#     # this loop goes through the raw files
-#     setwd(outpath)
-#     # outpath <<- outpath
-#     # r <<- r
-#     source(paste(SystemPath,"R/EvaluationScript_PRM_sqlite.R",sep = "/"))
-#     system.time(RAW <- read.raw(file = r,rawDiag = F))
-#     dir.create(dirout)
-#     setwd(dirout)
-#     dir.create(rpath <- gsub(".raw$","",basename(r)))
-#     setwd(rpath)
-#     print(paste("Reading RawFile",r))
-#     if(extraSink){
-#       msgcon <- file("SessionSink.txt", open = "a")
-#       sink(msgcon,append = T,split = F,type = "message")
-#       sink("SessionSink:output.txt", type = "output", append = TRUE, split = TRUE)
-#       
-#     }
-#     if(length(session) != 0){
-#       Max <- TTdec[,1,.(SpecID,Matches)]
-#       progress <- Progress$new(session,min=0, 0)
-#       on.exit(progress$close())
-#       progress$set(message = 'Collecting MS1 Scans',
-#                    detail = "",value = 0)
-#     }
-#     
-#     ms1scans <- RAW[RAW$MSOrder == "Ms",] # extracts scan numbers for ms1scans
-#     
-#     if(length(session) != 0){
-#       Max <- TTdec[,1,.(SpecID,Matches)]
-#       progress <- Progress$new(session,min=0, 0)
-#       on.exit(progress$close())
-#       progress$set(message = 'Collecting MS2 Scans',
-#                    detail = "",value = 0)
-#     }
-#     
-#     ms2scans <- RAW[RAW$MSOrder == "Ms2",] 
-#     removeDataDependentScans <- F
-#     if(removeDataDependentScans){
-#       MS2_undependent <- grep("NSI Full ms2",ms2scans$ScanType,fixed = T)# thermo specific, data dependent will not be searched...
-#       if(length(MS2_undependent)>0){
-#         ms2scans <- ms2scans[MS2_undependent,]
-#       }
-#     }
-#     # plot(density(ms2scans$StartTime))
-#     # extracts scan numbers for ms2scans
-#     # plot(as.numeric(gsub(",",".",ms2scans$StartTime)),as.numeric(gsub(",",".",ms2scans$BasePeakIntensity)),type = "l")
-#     # plot(as.numeric(gsub(",",".",ms1scans$StartTime)),as.numeric(gsub(",",".",ms1scans$BasePeakIntensity)),type = "l")
-#     
-#     ###
-#     ##
-#     #
-#     Precursors <- ST$mz
-#     PrecursorsWindows <- sapply(Precursors,ppmWindow,ppm = ppm1)
-#     
-#     mz <- as.numeric(gsub(",",".",ms2scans$PrecursorMass))
-#     mzuni <- unique(mz)
-#     # for DIA
-#     IsolationWidth_spacer <- 2*0.5
-#     # currently switched OFF
-#     IsolationWidth_spacer <- 0
-#     
-#     IsolationWindow <- ms2scans$IsolationWidth - IsolationWidth_spacer
-#     if(IsolationWindow==0){
-#       IsolationWindow <- ms2scans$IsolationWidth #- IsolationWidth_spacer
-#       
-#     }
-#     
-#     if(length(session) != 0){
-#       Max <- TTdec[,1,.(SpecID,Matches)]
-#       progress <- Progress$new(session,min=0, dim(PrecursorsWindows)[2])
-#       on.exit(progress$close())
-#       progress$set(message = r,
-#                    detail = "Scanning Fragment Masses",value = 0)
-#     }
-#     DIAwindows <- data.frame(lo = ms2scans$PrecursorMass -(IsolationWindow/2),up= ms2scans$PrecursorMass +(IsolationWindow/2))
-#     dbscans <- dbConnect(SQLite(),scans_backup <- paste(basename(r),".sqlite",sep = ""))
-#     SelectedScans <- apply(DIAwindows,1,function(x){
-#       any(x[1]<=Precursors&x[2]>=Precursors)
-#     })
-#     
-#     
-#     sn <- ms2scans$scanNumber[SelectedScans]
-#     sn <- sort(sn)
-#     
-#     scans_atOnce <- 2000
-#     scansToScan <- T
-#     startID <- 1
-#     while(scansToScan){
-#       if(length(sn)<scans_atOnce){
-#         scans_atOnce <- length(sn)
-#         scansToScan <- F
-#       }
-#       temp_sn <- sn[sel <- startID:(startID+scans_atOnce)]
-#       temp_sn <- temp_sn[!is.na(temp_sn)]
-#       sn <- sn[-sel]
-#       Spectra <- readScans(r,temp_sn)
-#       names(Spectra)<- sapply(Spectra,function(x){x$scan})
-#       ms2scans_subset <- ms2scans[MFUN <- match(temp_sn,ms2scans$scanNumber),]
-#       DIAwindows_subset <- DIAwindows[MFUN,]
-#       
-#       cat("\rRead",max(temp_sn),"from",max(sn))
-#       sapply(1:dim(PrecursorsWindows)[2],function(it){
-#         # t
-#         if(length(session)!=0){
-#           progress$set(message = r,
-#                        detail = "Scanning Fragment Masses",value = it)
-#         }
-#         # it <<- it
-#         lib_precursor <- PrecursorsWindows[,it]
-#         precursorInfo <- ST[it,]
-#         if(ShowInfo){
-#           cat("\nWorking on window:",lib_precursor)
-#         }else{
-#           cat("\r",it,"from",dim(PrecursorsWindows)[2])
-#           
-#           if(it%%1==0){
-#             LI <- list.files(pattern="^SessionStatusMS2",)
-#             if(length(LI)>0){
-#               sapply(LI,unlink)
-#             }
-#             write(it,paste("SessionStatusMS2",it,dim(PrecursorsWindows)[2],sep = "_"))
-#           }
-#         }
-#         mz <- ms2scans_subset$PrecursorMass
-#         if(DIA){
-#           TimeSelect <- ms2scans_subset$StartTime >= precursorInfo$Start&ms2scans_subset$StartTime<=precursorInfo$End
-#           DIAselect  <- DIAwindows_subset$lo <= ST$mz[it] & DIAwindows_subset$up >= ST$mz[it]
-#           EVENTS <- ms2scans_subset$scanNumber[DIAselect&TimeSelect]
-#           table(ms2scans_subset$PrecursorMass[DIAselect&TimeSelect])
-#           range(ms2scans_subset$StartTime[DIAselect&TimeSelect])
-#         }else{
-#           EVENTS <- ms2scans_subset$scanNumber[which(mz>=lib_precursor[1]&mz<=lib_precursor[2])]
-#           
-#         }
-#         EVENTS <- EVENTS[!is.na(EVENTS)]
-#         if(length(EVENTS)>0){
-#           # new readscans section 20200810 #########
-#           ScansMissing <- setdiff(paste("scans",EVENTS,sep = ""),dbListTables(dbscans))
-#           ScansAvailable <- intersect(paste("scans",EVENTS,sep = ""),list.files("scans"))
-#           ScansMissingNum <- gsub("scans","",ScansMissing)
-#           ScansAvailableNum <- gsub("scans","",ScansAvailable)
-#           print(paste("Scans to read",length(ScansMissing)))
-#           print(paste("Loadable Scans",length(ScansAvailableNum)))
-#           
-#           if(length(ScansMissing)>0){
-#             
-#             Mass <- Spectra[match(ScansMissingNum,names(Spectra))]#readScans(r,sort(ScansMissingNum),)
-#             Worked <- lapply(Mass,function(x){
-#               if(ShowInfo){
-#                 
-#                 cat("\r",x$title)
-#               }
-#               # x <<- x
-#               tempx <- x
-#               masses <- (tempx$mZ)
-#               Int <- (tempx$intensity)
-#               RT <- tempx$rtinseconds
-#               mz <- tempx$mZ
-#               # if(length(mz)==0){
-#               #   Xit <- grep("mZ",names(tempx))
-#               #   mz <- tempx[,.SD,.SDcols=xit]
-#               # }
-#               st <- tempx$scanType
-#               FI <- data.table(masses=masses,Int=Int,RT=RT,mz=mz,st=st,scan = tempx$scan)
-#             })  
-#             
-#             names(Worked) <- ScansMissing
-#             if(SaveScans&F){
-#               print("Saving Tables")
-#               lapply(1:length(Worked),function(x){
-#                 # cat("\rSaving Tables",names(Worked)[x])
-#                 # dbWriteTable(dbscans,names(Worked)[x],Worked[[x]],overwrite=T  )
-#                 workedfile=Worked[[x]]
-#                 save(workedfile,file=paste("scans",names(Worked)[x],sep = "/"))
-#                 
-#                 return(NULL)
-#               })
-#             }
-#             
-#             Workeddt <- rbindlist(Worked) 
-#             
-#           }else{
-#             cat("no missing scans")
-#           }
-#           if(ShowInfo){
-#             
-#             cat("\rWorking on window:",lib_precursor,"Found",length(EVENTS),"Spectra candidates")
-#           }
-#           
-#           
-#           
-#           if(length(ScansAvailable)>0){
-#             print(paste("Reloading", length(ScansAvailable),"Scans"))
-#             WorkedAvailable <- lapply(paste("scans",ScansAvailable,sep="/"),function(x){
-#               # cat("\r reloading",x)
-#               load(x)
-#               workedfile
-#             })
-#             
-#             WorkedAvailable <- rbindlist(WorkedAvailable)
-#             if(length(ScansMissing)==0){
-#               Workeddt <- WorkedAvailable
-#             }
-#           }
-#           if(length(ScansAvailable)>0&length(ScansMissing)>0){
-#             Workeddt <- rbind(Workeddt,WorkedAvailable)
-#           }
-#           #########
-#           if(0){
-#             
-#             ##### OLD scanning section
-#             Mass <- readScans(r,sort(EVENTS))
-#             if(ShowInfo){
-#               
-#               cat("\rWorking on window:",lib_precursor,"Found",length(EVENTS),"Spectra candidates")
-#             }
-#             
-#             Worked <- lapply(Mass,function(x){
-#               if(ShowInfo){
-#                 
-#                 cat("\r",x$title)
-#               }
-#               # x <<- x
-#               tempx <- x
-#               masses <- (tempx$mZ)
-#               Int <- (tempx$intensity)
-#               RT <- tempx$rtinseconds
-#               mz <- tempx$mZ
-#               # if(length(mz)==0){
-#               #   Xit <- grep("mZ",names(tempx))
-#               #   mz <- tempx[,.SD,.SDcols=xit]
-#               # }
-#               st <- tempx$scanType
-#               FI <- data.table(masses=masses,Int=Int,RT=RT,mz=mz,st=st,scan = tempx$scan)
-#             })  
-#             Workeddt <- rbindlist(Worked) 
-#             
-#           }
-#           
-#           
-#           
-#           
-#           
-#           
-#           
-#           
-#           # data.table with fragments in the list
-#           # Adding FaimsInfo 
-#           Workeddt[,FAIMS_cv := gsub(" .*","",gsub(".*cv=","",st)),st]
-#           Workeddt$FAIMS_cv[is.na(as.numeric(Workeddt$FAIMS_cv))] <- ""
-#           if(ShowInfo){
-#             
-#             cat("\rWorking on window:",lib_precursor,"Extracted Information from",dim(Workeddt)[2],"Spectra")
-#           }
-#           
-#           # Mapping Matching Spectra and writing to a file
-#           # Check if Faims cv has been applied:
-#           
-#           
-#           Matched <- ST[SpecID==precursorInfo$SpecID,{
-#             gr <-.BY
-#             wi <- ppmWindow(gr$mz,ppm1)
-#             if((wi[1]<= mean(lib_precursor)&wi[2]>= mean(lib_precursor))|DIA){
-#               # Extract Masses
-#               if(ShowInfo){
-#                 print(gr$SpecID)
-#                 
-#               }
-#               Tselect <- TT[SpecID== gr$SpecID,] # library
-#               Tselect <- Tselect[order(as.numeric(Intensities),decreasing = T),]
-#               Tselect$Decoy <-F
-#               TselectDEC <- TTdec[SpecID== gr$SpecID,]
-#               TselectDEC <- TselectDEC[order(as.numeric(Intensities),decreasing = T),]
-#               TselectDEC$Decoy <- T
-#               TselectDEC$Matches <- paste(TselectDEC$Matches,"_DECOY",sep = "")
-#               
-#               Tselect <- rbind(Tselect,TselectDEC)
-#               
-#               # windows for Precursor in Library
-#               WiMapps <- Tselect[,{
-#                 wi <- ppmWindow(Masses,ppm2)
-#                 list(lo = wi[1],up = wi[2])
-#               },.(Masses,Matches)]
-#               WiMapps <- WiMapps[match(Tselect$Matches,WiMapps$Matches)]
-#               
-#               
-#               enableJIT(3)
-#               LE <- length(unique(Workeddt$scan))
-#               
-#               system.time( PEPTIDES_init <- Workeddt[,{
-#                 if(ShowInfo){
-#                   
-#                   cat("\r Extracting Fragments:",.GRP,"from",LE)
-#                 }
-#                 temp <- .SD
-#                 MAPPS <- WIMAPPS(WiMapps,temp)
-#                 
-#                 # sort(WiMapps$Masses)
-#                 # MAPPS$
-#                 # temp$masses
-#                 # Intensities <- apply(WiMapps,1,function(x){
-#                 #   sel <- temp$masses>=x[3]&temp$masses<=x[4]
-#                 #   if(any(sel)){
-#                 #     SELE <- max(temp$Int[sel])
-#                 #     return(SELE)
-#                 #   }else{return(as.double(-1))}
-#                 # })
-#                 MAPPS_compiler(MAPPS)
-#               },.(RT,scan,FAIMS_cv)])
-#               table(PEPTIDES_init$MatchCount)
-#               enableJIT(3)
-#               
-#               
-#               
-#               
-#               # charge <- which(colnames(PEPTIDES)=="charge")
-#               decoys <- grepl("_DECOY$",colnames(PEPTIDES_init),perl = T)
-#               PEPTIDES_init <- PEPTIDES_init
-#               Tselecttemp <- Tselect
-#               DECOYPEPTIDES <- PEPTIDES_init[,.SD,.SDcols = colnames(PEPTIDES_init)[decoys]]
-#               PEPTIDES <- PEPTIDES_init[,.SD,.SDcols = colnames(PEPTIDES_init)[!decoys]]
-#               DECOYPEPTIDES$scan <- PEPTIDES_init$scan
-#               DECOYPEPTIDES$RT <- 0
-#               colnames(DECOYPEPTIDES) <- gsub("_DECOY$","",colnames(DECOYPEPTIDES))
-#               
-#               # PEPTIDES <<- PEPTIDES
-#               # stop()
-#               precursorInfo$FAIMS_CV <- NULL
-#               ExpandFragmentlist(PEPTIDES,precursorInfo,Tselecttemp[Decoy==FALSE],Reverse = F,rname=basename(r))
-#               ExpandFragmentlist(DECOYPEPTIDES,precursorInfo,Tselecttemp[Decoy==FALSE],Reverse=T,rname=basename(r))
-#               
-#               
-#             }else{
-#               PEPTIDES <- NULL
-#             }
-#             # as.list(PEPTIDES)
-#             NULL
-#             
-#           },.(mz,SpecID)]
-#           
-#         }
-#         
-#       })
-#       
-#       
-#     }
-#     
-#     
-#     
-#     
-#     # dir.create("scans")
-#     # 
-#     # sapply(1:dim(PrecursorsWindows)[2],function(it){
-#     #   # t
-#     #   if(length(session)!=0){
-#     #     progress$set(message = r,
-#     #                  detail = "Scanning Fragment Masses",value = it)
-#     #   }
-#     #   it <<- it
-#     #   lib_precursor <- PrecursorsWindows[,it]
-#     #   precursorInfo <- ST[it,]
-#     #   if(ShowInfo){
-#     #     cat("\nWorking on window:",lib_precursor)
-#     #   }else{
-#     #     cat("\r",it,"from",dim(PrecursorsWindows)[2])
-#     #     
-#     #     if(it%%1==0){
-#     #       LI <- list.files(pattern="^SessionStatusMS2",)
-#     #       if(length(LI)>0){
-#     #         sapply(LI,unlink)
-#     #       }
-#     #       write(it,paste("SessionStatusMS2",it,dim(PrecursorsWindows)[2],sep = "_"))
-#     #     }
-#     #   }
-#     #   
-#     #   if(DIA){
-#     #     TimeSelect <- ms2scans$StartTime >= precursorInfo$Start&ms2scans$StartTime<=precursorInfo$End
-#     #     DIAselect  <- DIAwindows$lo <= ST$mz[it] & DIAwindows$up >= ST$mz[it]
-#     #     EVENTS <- ms2scans$scanNumber[DIAselect&TimeSelect]
-#     #     table(ms2scans$PrecursorMass[DIAselect&TimeSelect])
-#     #     range(ms2scans$StartTime[DIAselect&TimeSelect])
-#     #   }else{
-#     #     EVENTS <- ms2scans$scanNumber[which(mz>=lib_precursor[1]&mz<=lib_precursor[2])]
-#     #     
-#     #   }
-#     #   
-#     #   if(length(EVENTS)>0){
-#     #     # new readscans section 20200810 #########
-#     #     ScansMissing <- setdiff(paste("scans",EVENTS,sep = ""),dbListTables(dbscans))
-#     #     ScansAvailable <- intersect(paste("scans",EVENTS,sep = ""),list.files("scans"))
-#     #     ScansMissingNum <- gsub("scans","",ScansMissing)
-#     #     ScansAvailableNum <- gsub("scans","",ScansAvailable)
-#     #     print(paste("Scans to read",length(ScansMissing)))
-#     #     print(paste("Loadable Scans",length(ScansAvailableNum)))
-#     #     
-#     #     if(length(ScansMissing)>0){
-#     #       Mass <- readScans(r,sort(ScansMissingNum),)
-#     #       Worked <- lapply(Mass,function(x){
-#     #         if(ShowInfo){
-#     #           
-#     #           cat("\r",x$title)
-#     #         }
-#     #         # x <<- x
-#     #         tempx <- x
-#     #         masses <- (tempx$mZ)
-#     #         Int <- (tempx$intensity)
-#     #         RT <- tempx$rtinseconds
-#     #         mz <- tempx$mZ
-#     #         # if(length(mz)==0){
-#     #         #   Xit <- grep("mZ",names(tempx))
-#     #         #   mz <- tempx[,.SD,.SDcols=xit]
-#     #         # }
-#     #         st <- tempx$scanType
-#     #         FI <- data.table(masses=masses,Int=Int,RT=RT,mz=mz,st=st,scan = tempx$scan)
-#     #       })  
-#     #       
-#     #       names(Worked) <- ScansMissing
-#     #       if(SaveScans){
-#     #         print("Saving Tables")
-#     #         lapply(1:length(Worked),function(x){
-#     #           # cat("\rSaving Tables",names(Worked)[x])
-#     #           # dbWriteTable(dbscans,names(Worked)[x],Worked[[x]],overwrite=T  )
-#     #           workedfile=Worked[[x]]
-#     #           save(workedfile,file=paste("scans",names(Worked)[x],sep = "/"))
-#     #           
-#     #           return(NULL)
-#     #         })
-#     #       }
-#     #       
-#     #       Workeddt <- rbindlist(Worked) 
-#     #       
-#     #     }else{
-#     #       cat("no missing scans")
-#     #     }
-#     #     if(ShowInfo){
-#     #       
-#     #       cat("\rWorking on window:",lib_precursor,"Found",length(EVENTS),"Spectra candidates")
-#     #     }
-#     #     
-#     #     
-#     #     
-#     #     if(length(ScansAvailable)>0){
-#     #       print(paste("Reloading", length(ScansAvailable),"Scans"))
-#     #       WorkedAvailable <- lapply(paste("scans",ScansAvailable,sep="/"),function(x){
-#     #         # cat("\r reloading",x)
-#     #         load(x)
-#     #         workedfile
-#     #       })
-#     #       
-#     #       WorkedAvailable <- rbindlist(WorkedAvailable)
-#     #       if(length(ScansMissing)==0){
-#     #         Workeddt <- WorkedAvailable
-#     #       }
-#     #     }
-#     #     if(length(ScansAvailable)>0&length(ScansMissing)>0){
-#     #       Workeddt <- rbind(Workeddt,WorkedAvailable)
-#     #     }
-#     #     #########
-#     #     if(0){
-#     #       
-#     #       ##### OLD scanning section
-#     #       Mass <- readScans(r,sort(EVENTS))
-#     #       if(ShowInfo){
-#     #         
-#     #         cat("\rWorking on window:",lib_precursor,"Found",length(EVENTS),"Spectra candidates")
-#     #       }
-#     #       
-#     #       Worked <- lapply(Mass,function(x){
-#     #         if(ShowInfo){
-#     #           
-#     #           cat("\r",x$title)
-#     #         }
-#     #         # x <<- x
-#     #         tempx <- x
-#     #         masses <- (tempx$mZ)
-#     #         Int <- (tempx$intensity)
-#     #         RT <- tempx$rtinseconds
-#     #         mz <- tempx$mZ
-#     #         # if(length(mz)==0){
-#     #         #   Xit <- grep("mZ",names(tempx))
-#     #         #   mz <- tempx[,.SD,.SDcols=xit]
-#     #         # }
-#     #         st <- tempx$scanType
-#     #         FI <- data.table(masses=masses,Int=Int,RT=RT,mz=mz,st=st,scan = tempx$scan)
-#     #       })  
-#     #       Workeddt <- rbindlist(Worked) 
-#     #       
-#     #     }
-#     #     
-#     #     
-#     #     
-#     #     
-#     #     
-#     #     
-#     #     
-#     #     
-#     #     # data.table with fragments in the list
-#     #     # Adding FaimsInfo 
-#     #     Workeddt[,FAIMS_cv := gsub(" .*","",gsub(".*cv=","",st)),st]
-#     #     Workeddt$FAIMS_cv[is.na(as.numeric(Workeddt$FAIMS_cv))] <- ""
-#     #     if(ShowInfo){
-#     #       
-#     #       cat("\rWorking on window:",lib_precursor,"Extracted Information from",dim(Workeddt)[2],"Spectra")
-#     #     }
-#     #     
-#     #     # Mapping Matching Spectra and writing to a file
-#     #     # Check if Faims cv has been applied:
-#     #     
-#     #     
-#     #     Matched <- ST[SpecID==precursorInfo$SpecID,{
-#     #       gr <<-.BY
-#     #       wi <<- ppmWindow(gr$mz,ppm1)
-#     #       if((wi[1]<= mean(lib_precursor)&wi[2]>= mean(lib_precursor))|DIA){
-#     #         # Extract Masses
-#     #         if(ShowInfo){
-#     #           print(gr$SpecID)
-#     #           
-#     #         }
-#     #         Tselect <- TT[SpecID== gr$SpecID,] # library
-#     #         Tselect <- Tselect[order(as.numeric(Intensities),decreasing = T),]
-#     #         Tselect$Decoy <-F
-#     #         TselectDEC <- TTdec[SpecID== gr$SpecID,]
-#     #         TselectDEC <- TselectDEC[order(as.numeric(Intensities),decreasing = T),]
-#     #         TselectDEC$Decoy <- T
-#     #         TselectDEC$Matches <- paste(TselectDEC$Matches,"_DECOY",sep = "")
-#     #         
-#     #         Tselect <- rbind(Tselect,TselectDEC)
-#     #         
-#     #         # windows for Precursor in Library
-#     #         WiMapps <- Tselect[,{
-#     #           wi <- ppmWindow(Masses,ppm2)
-#     #           list(lo = wi[1],up = wi[2])
-#     #         },.(Masses,Matches)]
-#     #         WiMapps <- WiMapps[match(Tselect$Matches,WiMapps$Matches)]
-#     #         
-#     #         
-#     #         enableJIT(3)
-#     #         LE <- length(unique(Workeddt$scan))
-#     #         
-#     #         system.time( PEPTIDES_init <- Workeddt[,{
-#     #           if(ShowInfo){
-#     #             
-#     #             cat("\r Extracting Fragments:",.GRP,"from",LE)
-#     #           }
-#     #           temp <- .SD
-#     #           MAPPS <- WIMAPPS(WiMapps,temp)
-#     #           
-#     #           # sort(WiMapps$Masses)
-#     #           # MAPPS$
-#     #           # temp$masses
-#     #           # Intensities <- apply(WiMapps,1,function(x){
-#     #           #   sel <- temp$masses>=x[3]&temp$masses<=x[4]
-#     #           #   if(any(sel)){
-#     #           #     SELE <- max(temp$Int[sel])
-#     #           #     return(SELE)
-#     #           #   }else{return(as.double(-1))}
-#     #           # })
-#     #           MAPPS_compiler(MAPPS)
-#     #         },.(RT,scan,FAIMS_cv)])
-#     #         table(PEPTIDES_init$MatchCount)
-#     #         enableJIT(3)
-#     #         
-#     #         
-#     #         
-#     #         
-#     #         # charge <- which(colnames(PEPTIDES)=="charge")
-#     #         decoys <- grepl("_DECOY$",colnames(PEPTIDES_init),perl = T)
-#     #         PEPTIDES_init <<- PEPTIDES_init
-#     #         Tselecttemp <<- Tselect
-#     #         DECOYPEPTIDES <- PEPTIDES_init[,.SD,.SDcols = colnames(PEPTIDES_init)[decoys]]
-#     #         PEPTIDES <- PEPTIDES_init[,.SD,.SDcols = colnames(PEPTIDES_init)[!decoys]]
-#     #         DECOYPEPTIDES$scan <- PEPTIDES_init$scan
-#     #         DECOYPEPTIDES$RT <- 0
-#     #         colnames(DECOYPEPTIDES) <- gsub("_DECOY$","",colnames(DECOYPEPTIDES))
-#     #         
-#     #         # PEPTIDES <<- PEPTIDES
-#     #         # stop()
-#     #         precursorInfo$FAIMS_CV <- NULL
-#     #         ExpandFragmentlist(PEPTIDES,precursorInfo,Tselecttemp[Decoy==FALSE],Reverse = F)
-#     #         ExpandFragmentlist(DECOYPEPTIDES,precursorInfo,Tselecttemp[Decoy==FALSE],Reverse=T)
-#     #         
-#     #         
-#     #       }else{
-#     #         PEPTIDES <- NULL
-#     #       }
-#     #       # as.list(PEPTIDES)
-#     #       NULL
-#     #       
-#     #     },.(mz,SpecID)]
-#     #     
-#     #   }
-#     #   
-#     # })
-#     
-#     dbDisconnect(dbscans)
-#     
-#     if(ExtractMS1){
-#       EVENTS <- ms1scans$scanNumber#[which(mz>=lib_precursor[1]&mz<=lib_precursor[2])]
-#       EVENTS <- sort(EVENTS)
-#       
-#       if(length(session) != 0){
-#         Max <- TTdec[,1,.(SpecID,Matches)]
-#         progress <- Progress$new(session,min=0, length(ST$mz))
-#         on.exit(progress$close())
-#         progress$set(message = r,
-#                      detail = "Scanning Precursor Masses",value = 0)
-#       }
-#       
-#       lapply(1:length(ST$mz),function(itx){
-#         mz <- ST$mz[itx]
-#         
-#         if(length(session)!=0){
-#           progress$set(message = r,
-#                        detail = "Scanning Fragment Masses",value = itx)
-#         }
-#         
-#         
-#         cat("\rExtracting MS1 Intensities for",mz,"#",itx,"from",length(ST$mz))
-#         if(itx%%10==0){
-#           LI <- list.files(pattern="^SessionStatusMS1",)
-#           if(length(LI)>0){
-#             sapply(LI,unlink)
-#           }
-#           write(itx,paste("SessionStatusMS1",itx,length(ST$mz),sep = "_"))
-#         }
-#         
-#         ch <- ST$Charge[itx]
-#         MASSES <- mz*ch-ch*1.00784+c(0:5)
-#         mzs <- (MASSES+ch*1.00784)/ch
-#         
-#         XICs <- readXICs(r,masses = mzs,tol = ppm1)# unclear how this function works
-#         
-#         Ranges <- lapply(XICs,function(x){x$times})
-#         TRange <- sort(unique(unlist(Ranges)))
-#         ms1Int <- sapply(XICs,function(x){
-#           x <-x
-#           M <- match(TRange,x$times)
-#           Is <- x$intensities[M]
-#           if(length(Is) == 0){
-#             Is <- rep(NA,length(TRange))
-#           }
-#           Is
-#         })
-#         
-#         # Preparing Data.frame for export
-#         colnames(ms1Int) <- paste("mz",0:5,"+",sep="")
-#         ms1Int <- data.frame(ms1Int,check.names = F)
-#         ms1Int$Charge <- ch
-#         ms1Int$RT <- TRange
-#         ms1Int$mz <- mz
-#         ms1Int$Modified_Sequence <- ST$Modified.sequence[itx]
-#         ms1Int$Sequence <- ST$Sequence[itx]
-#         ms1Int$ScanNumber <- NA
-#         ms1Int$rawfile <- r
-#         se <- ST$Sequence[itx]
-#         id <- ST$SpecID[itx]
-#         name_pep <- paste(paste(paste("ms1scans",mz,sep = ""),ch,se,id,sep = "_"),".txt",sep = "")
-#         
-#         fwrite(ms1Int,name_pep,sep = "\t",append = T)
-#         
-#         
-#       })
-#     }
-#     
-#     if(length(session)!=0){
-#       progress$close()
-#     }
-#     
-#   })
-#   write("DONE","RawFile_Finished")
-#   if(extraSink){
-#     sink(NULL, type = "message")
-#     sink(NULL, type = "output")
-#   }
-#   
-# }
-
-# setwd("/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/ERIK/20200210_Mito/Picky/NewTest_PRM_TargetDIA/tDIA5")
-# RawFilePath <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/ERIK/20200210_Mito/Picky/NewTest_PRM_TargetDIA/tDIA5"
-# dirout <- "./"
-# InclusionlistPath <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/ERIK/20200210_Mito/Picky/NewTest_PRM_TargetDIA/tDIA5/Picky_Export_FocusDIA_Thermo_Exploris_5Da"
-# ST <- fread("Picky_Export_FocusDIA_Thermo_Q_Exactive/SpectraTable.txt",sep = "\t")
-# TT <- fread("Picky_Export_FocusDIA_Thermo_Q_Exactive/TransitionTable.txt",sep = "\t")
 
 ## Extracts Intensities from a rawfile, input: rawfile, InclusionlistPath
 Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFilePath,dirout = "PRM_Analyzer_Matches",
@@ -3184,7 +2463,7 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
     unlink("./REV_Temp_CheckFile.txt")
     Files <- NULL
     RevFiles <- NULL
-    print("Starting TempCheckfile")
+    cat("\rStarting TempCheckfile")
     try({if(length(session)>0&length(progress)>0){
       progress$set(message = 'FDR',
                    detail = "Generating Featuretable (this will take a while)",value = 2)
@@ -3226,7 +2505,7 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
         mztable$Peptide_Length <- nchar(SEQUENCE)
         
         if(length(unique(mztable$Score))<2|ReScore){
-          cat("STARTING RESCORING")
+          cat("\rSTARTING RESCORING")
           
           mztable <- mztable[rawfile!="",]
           # 
@@ -3308,7 +2587,6 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
     fwrite(RevFiles,file = "REV_Temp_CheckFile.txt",sep = "\t",append = T)
     fwrite(Files,file = "Temp_CheckFile.txt",sep = "\t",append = T)
     
-    # temp <- fread("/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/ERIK/20200210_Mito/Picky/20200208_ETC_Picky_Test/QE/PRM_Analyzer_Matches/Temp_CheckFile.txt",sep = "\t",stringsAsFactors = F)
     # Predictin Socres ###########
     
     try({if(length(session)>0&length(progress)>0){
@@ -4311,9 +3589,9 @@ plot.analyzed.transition <- function(x,type = "Volcano",yl = NULL,xl = NULL,Ppos
     # colAll <- c(1:20)
     # xl<- c(30,40)
     xbackup <- x
-    print("Start plotTransitions")
+    cat("\rStart plotTransitions")
     plotTransitions(Index = as.numeric(x$RT_Used),x = transitions,yl = yl,xlim = xl,TransitionColors = TransitionColors,col = colAll,add = add,frame = F,xlab = xla,ylab = yla,Ppos = Ppos,axes = !blankplot)
-    print("Finished plotTransitions")
+    cat("\rFinished plotTransitions")
     
     x <- xbackup
     #abline(v=x$RT_Used[col == 2],lty = "dotted",col = "#99999940")
@@ -4945,7 +4223,6 @@ FDRtoManyRaw <- function(subdat){
 # Retention Time Correction ########
 ## RT average HP corrected, input: maxquant run (evidence.txt)
 RT_Correction_HP <- function(maxquant,span = 1,doCompareRT = F){
-  # maxquant <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/Miffy/PRM_TEST_YEAST_2/PRM_T"
   print("Reading TABLE")
   evi <- fread(paste(maxquant,"evidence.txt",sep = "/"),sep = "\t",stringsAsFactors = F,data.table = F)
   cat("\r Calculating HP")
@@ -5744,7 +5021,6 @@ DetectPeakWrapper <- function(
     DP[is.na(Q1)&Q2==1,c("Q1","Q2","Q1align","Q2align"):=NA]
     setcolorder(DP,c(names(DP)[-1],"rawfile"))
     
-    # print("Start Writing Peakfun Peaksfun")
     # DP_PeaksFun<- DP
     dbsuccess <- dbwrite(x = DP,name = dbtaNameVec,db =dbp,overwrite = T)
     # print("end Writing Peakfun Peaksfun")

@@ -1629,7 +1629,6 @@ server <- function(input, output, session){
       }
     }
     
-    # print("END reavtiveValue MOD")
   })
   #### Saving Sessions ---------
   observeEvent(input$saveSessionPaths,{
@@ -1641,6 +1640,8 @@ server <- function(input, output, session){
     Fi <- paste(Fi,basename(input$mainPath),basename(input$inclusionList),input$ppm1,input$ppm2,sep = "#")
     Li <- list(mainPath = input$mainPath,MaxQuant = input$MaxQuant,inclusionList=input$inclusionList,ppm = input$ppm1,ppm2 = input$ppm2,threads = input$Threads)
     save(Li,file = Fi)
+    session$reload()
+    
   })
   # Go of Rawfile Scanner Tool
   observeEvent(input$goButton ,{
@@ -1713,7 +1714,6 @@ server <- function(input, output, session){
     }
     IL <- read.csv(P,sep = "\t")
     # ILthermo <<- ILthermo
-    # print(P)
     return(IL)
   })
   # Noramlization based on msms.txt (requires MQ)
@@ -1883,7 +1883,6 @@ server <- function(input, output, session){
       
     }
     tl <<- tl
-    print("ANalyyzedList")
     # decide for FDR scoring column:
     tl <- lapply(tl,function(x){
       x$FDR <- 1
@@ -2362,11 +2361,11 @@ server <- function(input, output, session){
             info <- tempa[,which("charge" == colnames(tempa)):dim(tempa)[2]]
             # tempa <- tempa
             transManual <- transManual
-            print("DETECT PEAK MANUAL Start")
+            print("\rDETECT PEAK MANUAL Start")
             X_limit <- X_limit
             PeakDetected <- DetectPeak(pe <- min(X_limit,na.rm = T)+diff(X_limit)/2,diff(X_limit)/2,transManual,info$RT_Used,presetQuantiles = X_limit)#$quantile
             print(PeakDetected)
-            print("DETECT PEAK MANUAL Finish")
+            print("\rDETECT PEAK MANUAL Finish")
             
             infoquantile <- info[info$RT_min>= min(PeakDetected$quantile,na.rm = T)&info$RT_min<=max(PeakDetected$quantile,na.rm= T),]
             qe2 <-  range(infoquantile$RT2)
@@ -2746,7 +2745,6 @@ server <- function(input, output, session){
             #                             supersmooth_bw_set = input$supersmooth_bw_set,
             #                             ApplyMaximumWidth = input$ApplyMaximumWidth
             # )
-            print("Start DetectPeakWrapper")
             tempList <- list(tempa)
             names(tempList) <- fifu
             tempList <- tempList
@@ -2760,8 +2758,7 @@ server <- function(input, output, session){
                                             supersmooth_bw_set = supersmooth_bw_set_vec,
                                             ApplyMaximumWidth =  ApplyMaximumWidth_vec
             )
-            print("End DetectPeakWrapper")
-            
+
             # DPlist_I <- DetectPeakWrapper(LI,CANDIDATE_RT,dbp,RetentionTimeWindow,"Intensities",Reanalysis = T)
             # DPlist_XIC <- DetectPeakWrapper(LI,CANDIDATE_RT,dbp,RetentionTimeWindow,"XIC",Reanalysis = T)
             # DP <- rbind(DPlist_I[[1]],DPlist_XIC[[1]])
