@@ -808,14 +808,14 @@ server <- function(input, output, session){
     se.i <- se
     
     if(input$SimultaneousMassShift){
-      se <- se
-      pr <- precursors()
-      mzi <- input$mz
+      se <<- se
+      pr <<- precursors()
+      mzi <<- input$mz
       # mza <- mz()
       # mzii <<- mzi
       # mzai <<- mza
       # pr.i <<- pr
-      mza <- paste("mz",mzi,sep = "")
+      mza <<- paste("mz",mzi,sep = "")
       selectedInfo <- apply(pr,1,function(x){
         x <- x
         any(x[names(x) == "mz"]==mza)&x[names(x) == "Sequence"]==se
@@ -1337,7 +1337,7 @@ server <- function(input, output, session){
   
   output$PlotOutput <- renderPlot({
     CheckTransPlot <<- TransPlotReactive()
-    
+    print(length(CheckTransPlot))
     validate(need(is.list(CheckTransPlot),"No Data"))
     # add validate here 
     
@@ -1356,7 +1356,7 @@ server <- function(input, output, session){
     
     # fix xl
     maxXL <- max(unlist(lapply(CheckTransPlot,function(x){x$xl})))
-    
+    # ra <<- ranges()
     CheckTransPlot <- lapply(CheckTransPlot,function(x){
       x <- x
       # x$xl <- c(0,maxXL)

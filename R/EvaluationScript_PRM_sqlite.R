@@ -141,7 +141,7 @@ PrepareTransitionList <- function(mainPath,maxquant,inclusionList,ppm = 10,ppm2 
   maxquant <- NULL
   # session <- NULL
   wd <- getwd()
-   try(RETI <- CompilingDatabase(mainPath,maxquant,session,test = F,SystemPath=SystemPath,threads = threads))
+  try(RETI <- CompilingDatabase(mainPath,maxquant,session,test = F,SystemPath=SystemPath,threads = threads))
   setwd(wd)
   # try({rm(db)})
   
@@ -277,13 +277,22 @@ ExpandFragmentlist <- function(PEPTIDESexport,precursorInfo,Tselect,Reverse = F,
   z = precursorInfo$Charge
   Use_ModifiedSequence <- T
   if(Use_ModifiedSequence){
-    se <- precursorInfo$Modified_sequence
+    Modfun <- grep("modified.sequence",names(precursorInfo),ignore.case = T)
+    if(length(Modfun)==1){
+      se <- as.data.frame(precursorInfo)[,Modfun]
+      
+    }else{
+      print("Cannot find corred modified sequence column. Switching to Sequence")
+      se <- precursorInfo$Sequence
+      
+    }
     se <- gsub("^_","",se)
     se <- gsub(" ","",se)
     se <- gsub(" ","",se)
     se <- gsub(".","p",se,fixed = T)
     se <- gsub("_",".",se,fixed = T)
     se <- gsub("..",".",se,fixed = T)
+    se <- gsub(".","",se,fixed = T)
     
   }else{
     se = precursorInfo$Sequence
@@ -330,7 +339,7 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
   #   sink("SessionSink.txt",split = T,type="message")
   # }
   #
-   require(rawDiag)
+  require(rawDiag)
   require(compiler)
   require(data.table)
   require(Peptides)
@@ -586,7 +595,6 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
           
           
           
-          
           # data.table with fragments in the list
           # Adding FaimsInfo 
           Workeddt[,FAIMS_cv := gsub(" .*","",gsub(".*cv=","",st)),st]
@@ -666,9 +674,8 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
               DECOYPEPTIDES$RT <- 0
               colnames(DECOYPEPTIDES) <- gsub("_DECOY$","",colnames(DECOYPEPTIDES))
               
-              # PEPTIDES <<- PEPTIDES
-              # stop()
               precursorInfo$FAIMS_CV <- NULL
+              # PEPTIDES <<- PEPTIDES
               ExpandFragmentlist(PEPTIDES,precursorInfo,Tselecttemp[Decoy==FALSE],Reverse = F,rname=basename(r))
               ExpandFragmentlist(DECOYPEPTIDES,precursorInfo,Tselecttemp[Decoy==FALSE],Reverse=T,rname=basename(r))
               
@@ -1971,7 +1978,7 @@ fdr_MAX <- function(SCORE,FDR){
   class(hum) <- list("list","FDRCORRECTED")
   return(hum)
 }
-### Scoringwrapper, main function, used in compilingdatabase
+### Scoringwrapper, main function, used in (compilingdatabase
 ScoringWrapper_broken <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh20=F,session = NULL,ReScore=F,threads=3){
   FUN <-try({
     # mdpath <- list.files(paste(SystemPath,"Model",sep = "/"),pattern = "ScoringModel_Full.rda$",full.names =T)
@@ -2452,12 +2459,11 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
     if(basename(getwd())=="TempTables"){
       unlink(list.files())
     }
+    # cl <- makeCluster(threads,outfile="test.txt",setup_strategy = "sequential")
     cl <- makeCluster(threads,outfile="test.txt",setup_strategy = "sequential")
+    
     print("Exporting Models.h2o")
-    if(file.exists("Models.h2o")){
-      clusterExport(cl, "Models.h2o",envir ="ScoringWrapper_parallelized" )
-      
-    }
+    
     print("Done Exporting Models")
     unlink("./Temp_CheckFile.txt")
     unlink("./REV_Temp_CheckFile.txt")
@@ -2472,9 +2478,12 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
     try({
       dbNAME <- db@dbname
       wd <- getwd()
+      if(file.exists("Models.h2o")){
+        clusterExport(cl, "Models.h2o",envir ="ScoringWrapper_parallelized" )
+        
+      }
       
-      
-      hu <- parLapply(cl,1:length(fi),function(itx,fi,dbNAME=NULL,session=NULL,ReScore=F,SystemPath=NULL,Models.h2o=NULL,db=NULL,wd = NULL){
+      hu <- parLapply(cl,1:length(fi),function(itx,fi,dbNAME=NULL,session=NULL,ReScore=T,SystemPath=NULL,Models.h2o=NULL,db=NULL,wd = NULL){
         library(RSQLite)
         library(data.table)
         library(h2o)
@@ -2557,7 +2566,9 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
           # 
           # mztableSelect$mzname <- mzname
           
-          tr <- try({mztableSelect <- MakeFeatureTable(mztable,defaultPeptideLength =nchar(SEQUENCE),mzname = mzname,mdpar=Models.h2o$DeepLearning@parameters$x)})
+          tr <- try({
+            mztableSelect <- MakeFeatureTable(mztable,defaultPeptideLength =nchar(SEQUENCE),mzname = mzname,mdpar=Models.h2o$DeepLearning@parameters$x)
+          })
           if(class(tr)=="try-error"){
             print("error in MakeFeatureTable. Check variables mztable and mzname in function MakeFeatureTable().")
             # mztable <<- mztable
@@ -4740,7 +4751,7 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
       
     }
     
-
+    
     # PS$RTdiff <- abs(PS$peak-rt_pep)
     q1 <- quantile(PS$score,0.8,na.rm = T)
     q2 <- quantile(PS$MaxIntensity,0.8,na.rm = T)
@@ -4755,7 +4766,7 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
         
       }
     }
-   
+    
     qset <- 0.8
     while(diff(range(PS$score))>0.1){
       qset <- qset+0.1
@@ -4774,7 +4785,7 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
     qua <- qua[MaxIntensity==max(MaxIntensity,na.rm = T)]
     qua <- qua[,.(quantile(start,0.1,na.rm = T),quantile(end,0.9,na.rm = T),median(peak,na.rm = T))]
     qua <- unlist(qua[1,])[1:3]
-   
+    
     if(ApplyMaximumWidth){
       PeakBoundaries_Algo <- "CutOff"
       if(PeakBoundaries_Algo=="CutOff"){
@@ -5118,7 +5129,7 @@ DetectPeakWrapper <- function(
                                             FDR=NULL,
                                             scores=temp$DL_Scores,
                                             MinPeakWidth = MinPeakWidth,
-                                            MaxPeakWidth = MaxPeakWidth,supersmoeoth_I_set = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set
+                                            MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set
             )})#$quantile
             temp <- trans$Info
             infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
@@ -6149,7 +6160,7 @@ MakeFeatureTable <- function(mztable,defaultPeptideLength=NULL,mzname="unknown",
   }
   # evaluating:
   
-
+  
   mdpar_match <- match(mdpar,colnames(TrainSet))
   missing <- mdpar[is.na(mdpar_match)]
   print(missing)
