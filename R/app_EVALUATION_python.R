@@ -172,9 +172,7 @@ ui <- fluidPage(
                                     fluidRow(column(4,actionButton("BadPeak","",icon = icon("thumbs-down"),style="color: #ff2600; border-color: #ff2600")),
                                              column(4,actionButton("notdefinedPeak","",icon = icon("stethoscope"),style="color: #2e6da4; border-color: #2e6da4")),
                                              column(4,actionButton("GoodPeak","",icon = icon("thumbs-up"),style="color: #00b19c; border-color: #00b19c"))))     ,                       
-                                    
-                                    
-                                    
+
                                     # checkboxInput("PRMonly","PRM",value = T),
                                     conditionalPanel("false",
                                                      checkboxInput("SignificantOnly","SignificantOnly",value = F)
@@ -183,8 +181,12 @@ ui <- fluidPage(
                                       fluidRow(column(4,mainPanel(h5("Peak Assignment"),width = "100%"))),#column(8,checkboxInput("allshifts","All m/z",T))),
                                       
                                       fluidRow(column(4,actionButton("ManualSetPeak","Set",style="background-color: #00b19c;color: #fff")),column(8,actionButton("RemovePeak","Remove",width = "100%",style="background-color: #ff2600;color: #fff"))),
-                                      fluidRow(column(12,actionButton("SetSearchArea","Area Search",width = "100%",style="background-color: #2e6da4;color: #fff"),style = "margin-top: 5px")),
+                                      conditionalPanel("false",
+                                                       fluidRow(column(12,actionButton("SetSearchArea","Area Search",width = "100%",style="background-color: #2e6da4;color: #fff"),style = "margin-top: 5px"))
+                                                       
+                                                       ),
                                       fluidRow(column(6,actionButton("Requantify","Requantify"),style = "margin-top: 10px")),
+                                      fluidRow(column(12,selectInput("Requantify_Priority","Peak Priority",c("DL_Scores","Intensity","Light","Heavy","none")),style = "margin-top: 10px")),
                                       fluidRow(column(6,actionButton("reset", "Reset Assignments"),style = "margin-top: 10px")),
                                       fluidRow(column(12,switchInput("supersmooth_I_set","Smoother",value = F),style="margin-top:20px")),
                                       fluidRow(column(12,switchInput("CenterPeak",label = "Center Peak",width="auto")))
@@ -433,7 +435,7 @@ ui <- fluidPage(
 #server ------
 server <- function(input, output, session){
   ## Removes Peaks from a m/z
-  observeEvent(input$reset,{
+  observeEvent(c(input$reset,input$Requantify_Priority),{
     DBL <<- dblistT(dbpath())
     db <- dbConnect(SQLite(),dbpath())
     dbname <- dbtaName(AnalyzedTransitions(),dbpath())
@@ -1337,6 +1339,7 @@ server <- function(input, output, session){
   
   output$PlotOutput <- renderPlot({
     CheckTransPlot <<- TransPlotReactive()
+    print("TransPlotReactive Result:")
     print(length(CheckTransPlot))
     validate(need(is.list(CheckTransPlot),"No Data"))
     # add validate here 
@@ -2133,6 +2136,7 @@ server <- function(input, output, session){
       qType <<- qType
       RTwin <<- RTwin
       Reanalysis_Check <<- Reanalysis_Check
+      # input <- list(MinPeakWidth=10,MaxPeakWidth=20,supersmooth_bw_set=F,ApplyMaximumWidth=10)
       DPlist <- DetectPeakWrapper(ana = ana,CANDIDATE_RT = CANDIDATE_RT,dbp = dbp,
                                   RetentionTimeWindow = RTwin,QType = qType,Reanalysis = Reanalysis_Check,
                                   RT_BASED_onbestScore = T,
@@ -2140,7 +2144,9 @@ server <- function(input, output, session){
                                   MaxPeakWidth=input$MaxPeakWidth,
                                   supersmooth_I_set = F,#input$supersmooth_I_set,
                                   supersmooth_bw_set = input$supersmooth_bw_set,
-                                  ApplyMaximumWidth = input$ApplyMaximumWidth
+                                  ApplyMaximumWidth = input$ApplyMaximumWidth,
+                                  Requantify_Priority= input$Requantify_Priority
+                                  
       )
     })
     
@@ -2188,7 +2194,9 @@ server <- function(input, output, session){
                                 MaxPeakWidth=input$MaxPeakWidth,
                                 supersmooth_I_set = F,#input$supersmooth_I_set,
                                 supersmooth_bw_set = input$supersmooth_bw_set,
-                                ApplyMaximumWidth = input$ApplyMaximumWidth
+                                ApplyMaximumWidth = input$ApplyMaximumWidth,
+                                Requantify_Priority= input$Requantify_Priority
+                                
     )
     
     
@@ -2644,6 +2652,7 @@ server <- function(input, output, session){
     MaxPeakWidth_vec <<- input$MaxPeakWidth
     supersmooth_bw_set_vec <<- input$supersmooth_bw_set
     ApplyMaximumWidth_vec <<-   input$ApplyMaximumWidth
+    Requantify_Priority <<- input$Requantify_Priority
     for(i in 1:length(anaexport)){
       fifu <- anaexport[i]
       cat("\rworking on ",fifu)
@@ -2756,7 +2765,9 @@ server <- function(input, output, session){
                                             MaxPeakWidth=MaxPeakWidth_vec,
                                             supersmooth_I_set = F,#input$supersmooth_I_set,
                                             supersmooth_bw_set = supersmooth_bw_set_vec,
-                                            ApplyMaximumWidth =  ApplyMaximumWidth_vec
+                                            ApplyMaximumWidth =  ApplyMaximumWidth_vec,
+                                            Requantify_Priority= Requantify_Priority
+                                            
             )
 
             # DPlist_I <- DetectPeakWrapper(LI,CANDIDATE_RT,dbp,RetentionTimeWindow,"Intensities",Reanalysis = T)

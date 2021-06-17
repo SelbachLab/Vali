@@ -4192,7 +4192,7 @@ dbwrite <- function(x,name,db = "./PickyAnalyzer.sqlite",...){
 dblistT<- function(db = "./PickyAnalyzer.sqlite"){
   fp <- paste(dirname(db),"TableCompiled",sep = "/")
   if(!file.exists(fp)){
-    print("Database not compiled")
+    warning("Database not compiled")
     return(NULL)
   }
   
@@ -4943,7 +4943,8 @@ DetectPeakWrapper <- function(
   MinPeakWidth=0.1,
   MaxPeakWidth=0.5,
   supersmooth_I_set=F,
-  supersmooth_bw_set=0.1
+  supersmooth_bw_set=0.1,
+  Requantify_Priority="DL_Scores"
   
 ){
   # First DPLIST and Writing it to Database for Int and XIC
@@ -5048,14 +5049,10 @@ DetectPeakWrapper <- function(
   # fu <- (sapply(DPlist,function(x){x <<- x;(cbind(x$Q1,x$Q2,x$rawfile))}))
   DPlistBackup <- DPlist
   
-  # a<- DPlist[[1]]
-  # b <- DPlistBackup[[1]]
-  # 
-  # a <- a[order(a$rawfile),]
-  # b <- b[order(b$rawfile)]
-  # Determining Best Peaks:
+  
   
   if(RT_BASED_onbestScore&length(DPlist)>1){
+    print("Reassign")
     # Extracting Windows
     DPlistDT <- lapply(1:length(DPlist),function(x){
       tempu <- DPlist[[x]];
@@ -5064,21 +5061,43 @@ DetectPeakWrapper <- function(
       tempu[is.na(Q1)&Q2==1,c("Q1","Q2","Q1align","Q2align"):=NA]
       tempu
     })
-    DPDT <- rbindlist(DPlistDT)
+    DPDT <<- rbindlist(DPlistDT)
     # Deciding on precursors per rawfile, which need to be requantified
     
-    Reassign <- DPDT[,{
+    Reassign <<- DPDT[,{
       temp <- .SD
       temp$FDR[is.na(temp$FDR)] <- 10
       
-      Quantiles <- temp[FDR==min(FDR,na.rm = T),.(Q1,Q2)]
+      if(Requantify_Priority=="DL_Scores"){
+        sel <- DL_Scores==max(DL_Scores,na.rm = T)
+      }
+      if(Requantify_Priority=="FDR"){
+        sel <- FDR==max(FDR,na.rm = T)
+      }
+      if(Requantify_Priority=="Intensity"){
+        MaxFun <- as.numeric(apply(tempSelect <- temp[QuantitationType=="Intensities",],1,function(x){max(as.numeric(x)[1:(which(names(temp)=="Q1")-1)],na.rm = T)}))
+        sel <- Precursor==tempSelect$Precursor[MaxFun==max(MaxFun)]
+        
+      }
+      if(Requantify_Priority=="Light"){
+        
+        mz <- as.numeric(gsub("mz","",sapply(strsplit(temp$Precursor,"_"),"[[",1)))
+        sel <- mz==min(mz)
+      }
+      if(Requantify_Priority=="Heavy"){
+        mz <- as.numeric(gsub("mz","",sapply(strsplit(temp$Precursor,"_"),"[[",1)))
+        sel <- mz==max(mz)
+      }
+      Quantiles <- temp[sel,.(Q1,Q2)]
+      
+      Quantiles <- unique(Quantiles)
       
       if(all(is.na(Quantiles))){
         # print("NULL")
         Quantiles <- NULL
       }else{
         # print("FUN")
-        NeedsAnUpdate <- temp[FDR>min(FDR,na.rm = T)|is.na(Q1),.(Precursor)]
+        NeedsAnUpdate <- temp[!sel,.(Precursor)]
         Quantiles <- Quantiles
         Precursor <- NeedsAnUpdate$Precursor
         Quantiles <- cbind(Quantiles,Precursor)
@@ -5095,9 +5114,9 @@ DetectPeakWrapper <- function(
     if(dim(Reassign)[1]>0){
       Reassign[,{
         
-        tempReassing <- .SD
-        gr <- .BY
-        it <- which(names(ana)==gr$Precursor)
+        tempReassing <<- .SD
+        gr <<- .BY
+        it <<- which(names(ana)==gr$Precursor)
         tempana <- ana[[it]]
         dbtaNameVec <- dbtaName(ana,dbp)[it]
         DP <- dbread(dbtaNameVec,dbp)
@@ -5115,7 +5134,7 @@ DetectPeakWrapper <- function(
             # Extract transitions
             transidf <- tempana_rf[,.SD,.SDcols=1:(which(names(tempana) =="charge")-1)]
             transidf <- as.data.frame(transidf)
-            trans <- SplitTransitionInfo(tempana_rf)
+            trans <<- SplitTransitionInfo(tempana_rf)
             trans$Transitions[trans$Transitions==-1]<-0
             # Specify RT range
             RANGE <- range(tempReassing[rawfile==grp$rawfile,.(Q1,Q2)])
@@ -5127,7 +5146,7 @@ DetectPeakWrapper <- function(
                                             RT = trans$Info$RT_Used,
                                             presetQuantiles = RANGE,
                                             FDR=NULL,
-                                            scores=temp$DL_Scores,
+                                            scores=trans$Info$DL_Scores,
                                             MinPeakWidth = MinPeakWidth,
                                             MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set
             )})#$quantile
