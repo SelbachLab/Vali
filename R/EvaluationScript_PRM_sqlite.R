@@ -5051,7 +5051,7 @@ DetectPeakWrapper <- function(
   
   
   
-  if(RT_BASED_onbestScore&length(DPlist)>1){
+  if(RT_BASED_onbestScore&length(DPlist)>1&Requantify_Priority!="none"){
     print("Reassign")
     # Extracting Windows
     DPlistDT <- lapply(1:length(DPlist),function(x){
@@ -5061,10 +5061,10 @@ DetectPeakWrapper <- function(
       tempu[is.na(Q1)&Q2==1,c("Q1","Q2","Q1align","Q2align"):=NA]
       tempu
     })
-    DPDT <<- rbindlist(DPlistDT)
+    DPDT <- rbindlist(DPlistDT)
     # Deciding on precursors per rawfile, which need to be requantified
     
-    Reassign <<- DPDT[,{
+    Reassign <- DPDT[,{
       temp <- .SD
       temp$FDR[is.na(temp$FDR)] <- 10
       
@@ -5097,7 +5097,7 @@ DetectPeakWrapper <- function(
         Quantiles <- NULL
       }else{
         # print("FUN")
-        NeedsAnUpdate <- temp[!sel,.(Precursor)]
+        NeedsAnUpdate <- temp[sel,.(Precursor)]
         Quantiles <- Quantiles
         Precursor <- NeedsAnUpdate$Precursor
         Quantiles <- cbind(Quantiles,Precursor)
@@ -5114,9 +5114,9 @@ DetectPeakWrapper <- function(
     if(dim(Reassign)[1]>0){
       Reassign[,{
         
-        tempReassing <<- .SD
-        gr <<- .BY
-        it <<- which(names(ana)==gr$Precursor)
+        tempReassing <- .SD
+        gr <- .BY
+        it <- which(names(ana)!=gr$Precursor)
         tempana <- ana[[it]]
         dbtaNameVec <- dbtaName(ana,dbp)[it]
         DP <- dbread(dbtaNameVec,dbp)
@@ -5126,7 +5126,6 @@ DetectPeakWrapper <- function(
           # cat("\r",.GRP,.BY$rawfile)
           tempana_rf <- .SD
           grp <- .BY
-          
           if(dim(tempana_rf)[1]==0){
             OutTable <- NULL
           }else{
@@ -5137,41 +5136,48 @@ DetectPeakWrapper <- function(
             trans <<- SplitTransitionInfo(tempana_rf)
             trans$Transitions[trans$Transitions==-1]<-0
             # Specify RT range
-            RANGE <- range(tempReassing[rawfile==grp$rawfile,.(Q1,Q2)])
-            # print("DetectPeak Start")
-            PeakDetected <- list(quantile=c(NA,NA),XIC=NA,intensity=NA)
-            try({PeakDetected <- DetectPeak(rt_pep = mean(RANGE),
-                                            Peakwidth = diff(RANGE),
-                                            transitions = trans$Transitions,
-                                            RT = trans$Info$RT_Used,
-                                            presetQuantiles = RANGE,
-                                            FDR=NULL,
-                                            scores=trans$Info$DL_Scores,
-                                            MinPeakWidth = MinPeakWidth,
-                                            MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set
-            )})#$quantile
-            temp <- trans$Info
-            infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
-            infoquantile <- infoquantileParser(infoquantile)
-            infoquantile <-rbind(infoquantile,infoquantile)
-            infoquantile <- apply(infoquantile,2,as.double)
-            
-            PeakDetected$all <- NULL     
-            QuantitationType <- c("XIC","Intensities")
-            Q <- PeakDetected$quantile
-            if(length(Q) == 0){
-              Q = as.double(c(NA,NA))
+            rangeinit <<- tempReassing[rawfile==grp$rawfile,.(Q1,Q2)]
+            if(dim(rangeinit)[1]>0){
+              
+              RANGE <- range(rangeinit)
+              # print("DetectPeak Start")
+              PeakDetected <- list(quantile=c(NA,NA),XIC=NA,intensity=NA)
+              try({PeakDetected <- DetectPeak(rt_pep = mean(RANGE),
+                                              Peakwidth = diff(RANGE),
+                                              transitions = trans$Transitions,
+                                              RT = trans$Info$RT_Used,
+                                              presetQuantiles = RANGE,
+                                              FDR=NULL,
+                                              scores=trans$Info$DL_Scores,
+                                              MinPeakWidth = MinPeakWidth,
+                                              MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set
+              )})#$quantile
+              temp <- trans$Info
+              infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
+              infoquantile <- infoquantileParser(infoquantile)
+              infoquantile <-rbind(infoquantile,infoquantile)
+              infoquantile <- apply(infoquantile,2,as.double)
+              
+              PeakDetected$all <- NULL     
+              QuantitationType <- c("XIC","Intensities")
+              Q <- PeakDetected$quantile
+              if(length(Q) == 0){
+                Q = as.double(c(NA,NA))
+              }
+              
+              IntensityStuff <- rbind(PeakDetected$XIC,PeakDetected$intensity)
+              IntensityStuff <- data.frame(IntensityStuff)
+              IntensityStuff$Q1 <- Q[1]
+              IntensityStuff$Q2 <- Q[2]
+              IntensityStuff$Q1align <- Q[1]
+              IntensityStuff$Q2align <- Q[2]
+              IntensityStuff$Peaks <- as.double(NA)
+              IntensityStuff$QuantitationType <- QuantitationType
+              OutTable <- cbind(IntensityStuff,infoquantile)
+            }else{
+              OutTable <- NULL
             }
             
-            IntensityStuff <- rbind(PeakDetected$XIC,PeakDetected$intensity)
-            IntensityStuff <- data.frame(IntensityStuff)
-            IntensityStuff$Q1 <- Q[1]
-            IntensityStuff$Q2 <- Q[2]
-            IntensityStuff$Q1align <- Q[1]
-            IntensityStuff$Q2align <- Q[2]
-            IntensityStuff$Peaks <- as.double(NA)
-            IntensityStuff$QuantitationType <- QuantitationType
-            OutTable <- cbind(IntensityStuff,infoquantile)
             # if(cleandata){
             #   OutTable$Q1 <- as.double(NA)
             #   OutTable$Q2 <- as.double(NA)
@@ -5189,12 +5195,12 @@ DetectPeakWrapper <- function(
           
           OutTable
         },rawfile]
+        
         DPnochange <- DP[is.na(match(rawfile,Corrected$rawfile)),]
         DPnew <- rbind(DPnochange,Corrected)
         cat("\rrewriting",dbtaNameVec)
         if(dim(DPnew)[1]==dim(DP)[1]){
           dbwrite(DPnew,dbtaNameVec,dbp,overwrite = T)
-          
         }
         
         NULL
@@ -6133,14 +6139,15 @@ TransitionGGplot <- function(subDat,
 MakeFeatureTable <- function(mztable,defaultPeptideLength=NULL,mzname="unknown",mdpar=c("UNKNOWN")){
   library(h2o)
   h2o.init()
+  mztable[,id:=1:dim(mztable)[1]]
+  mztable <- mztable[,.SD[order(RT_min)],rawfile]
+  
   mztable <- mztable[,ValiScoringFunction(.SD,.BY),rawfile]
   # mztable <- mztable[,ValiScoringFunction(.SD,.BY),]
   
   
-  
-  mztable <- mztable[order(RT_min),]
   mztable <- data.table(mztable)
-  mztable <- mztable[order(RT_min),]
+  
   
   #### h2o prediction
   TrainSet <- mztable
@@ -6192,6 +6199,7 @@ MakeFeatureTable <- function(mztable,defaultPeptideLength=NULL,mzname="unknown",
   mztableSelect$scan <- TrainSet$scan
   
   mztableSelect$mzname <- mzname
+  mztableSelect <- mztableSelect[order(TrainSet$id)]
   mztableSelect
 }
 
