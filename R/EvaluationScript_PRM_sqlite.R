@@ -4944,10 +4944,21 @@ DetectPeakWrapper <- function(
   MaxPeakWidth=0.5,
   supersmooth_I_set=F,
   supersmooth_bw_set=0.1,
-  Requantify_Priority="DL_Scores"
+  Requantify_Priority="DL_Scores",
+  session = NULL
   
 ){
   # First DPLIST and Writing it to Database for Int and XIC
+  if(length(session)>0){
+    le <-length(ana)*length(unique(ana[[1]]$rawfile))
+    
+    progress <- Progress$new(session,min=0, max=le)
+    on.exit(progress$close())
+    progress$set(message = 'Compiling scans',
+                   detail = "almost done",value = 0)
+    progressit <<- 0
+    
+  }
   DPlist <- lapply(1:length(ana),function(it){ it<-it
   it
   x <- ana[[it]]
@@ -4958,6 +4969,11 @@ DetectPeakWrapper <- function(
     temp <- x[rawfile==rawfile[1]]
     # Going through rawfile by rawfile
     DP <- x[,{
+      if(length(session)>0){
+        
+        progressit <<- progressit+1
+        progress$set(value=progressit)
+      }
       # cat("\r",.GRP,.BY$rawfile)
       temp <- .SD
       grp <- .BY

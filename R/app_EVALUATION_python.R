@@ -2145,7 +2145,8 @@ server <- function(input, output, session){
                                   supersmooth_I_set = F,#input$supersmooth_I_set,
                                   supersmooth_bw_set = input$supersmooth_bw_set,
                                   ApplyMaximumWidth = input$ApplyMaximumWidth,
-                                  Requantify_Priority= input$Requantify_Priority
+                                  Requantify_Priority= input$Requantify_Priority,
+                                  session=session
                                   
       )
     })
@@ -2195,7 +2196,9 @@ server <- function(input, output, session){
                                 supersmooth_I_set = F,#input$supersmooth_I_set,
                                 supersmooth_bw_set = input$supersmooth_bw_set,
                                 ApplyMaximumWidth = input$ApplyMaximumWidth,
-                                Requantify_Priority= input$Requantify_Priority
+                                Requantify_Priority= input$Requantify_Priority,
+                                session=session
+                                
                                 
     )
     
