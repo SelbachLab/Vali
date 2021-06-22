@@ -4092,6 +4092,9 @@ PeakDetection <- function(transitions,RTs,movavg_window=5,movavg_type="t",Qualit
   # RTs <<- RTs
   # RTs <- RT.DetectPeak
   RTs <<- RTs
+  plot(RTs,transitionstemp$a2,type="l")
+  plot(RTs,transitionstemp$y8,type="l")
+  
   RT.DetectPeak <- RTs 
   if(ZeroSmooth){
     transitionstemp <- apply(transitionstemp,2,function(x){
@@ -4119,9 +4122,8 @@ PeakDetection <- function(transitions,RTs,movavg_window=5,movavg_type="t",Qualit
     transitionstemp <- t(transitionstemp)
     transitionstemp <- Neighbour_Mean_imputation(transitionstemp)
   }
-  
   temp <- lapply(1:dim(transitionstemp)[2],function(counter){
-    x <- transitionstemp[,counter]
+    x <- as.data.frame(transitionstemp)[,counter]
     
     # plot(RTs,x,type="l")
     # try({
@@ -4145,6 +4147,25 @@ PeakDetection <- function(transitions,RTs,movavg_window=5,movavg_type="t",Qualit
     # points(xm,typeC="l",col=2,type="l")
     te <- data.table(findpeaks(xm,nups = 1,ndowns = 1,minpeakheight = 1000))
   })
+  
+  # if findpeaks with nups and ndowns is too conservative
+  if(all(lengths(temp)==0)){
+    temp <- lapply(1:dim(transitionstemp)[2],function(counter){
+      x <- as.data.frame(transitionstemp)[,counter]
+      
+      
+      if(supersmooth_I){
+        xm <- supsmu(RTs,x,span=supersmooth_bw)$y
+        
+      }else{
+        xm <- x
+      }
+      # points(xm,typeC="l",col=2,type="l")
+      te <- data.table(findpeaks(xm,nups = 0,ndowns = 0,minpeakheight = 1000))
+    })
+    
+  }
+  unique(temp)
   temp <- lapply(1:length(temp),function(i){
     temptemp <- temp[[i]]
     if(dim(temptemp)[1]>0){
@@ -4185,9 +4206,11 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
                        FDR=NULL,
                        alpha=0.01
 ){
-  rt_pep     <- unique(rt_pep)
-  # Peakwidth  <<- Peakwidth
-  # transitions <<- transitions
+  rt_pep     <<- unique(rt_pep)
+  Peakwidth  <<- Peakwidth
+  transitions <<- transitions
+  scores <<- scores
+  RT <<- RT
   RT.DetectPeak <- RT
   # putting in RT order:
   ord_vec <- order(RT)
@@ -4233,10 +4256,10 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
     # print("Peak Detection")
     Peaks <<- PeakDetection(transitions,RT.DetectPeak,movavg_window=5,movavg_type="t",ZeroSmooth = F,Diff_Smooth = F,supersmooth_I = supersmooth_I_set,supersmooth_bw = supersmooth_bw_set)
     # Peaks <<- PeakDetection(transitions,RT.DetectPeak,movavg_window=5,movavg_type="t",ZeroSmooth = F,Diff_Smooth = F,supersmooth_I = F)
-    scores <<- scores
+    # scores <<- scores
     # plot(RT.DetectPeak,transitionstemp$)
-    RT.DetectPeak <<- RT.DetectPeak
-    FDR <<- FDR
+    # RT.DetectPeak <<- RT.DetectPeak
+    # FDR <<- FDR
     # Adding ScoreInformation:
     ######
     # plot(RT.DetectPeak,scores)
@@ -4514,7 +4537,7 @@ DetectPeakWrapper <- function(
       Candidate <- CANDIDATE_RT[CANDIDATE_RT$rawfile == grp$rawfile]
       RTset <- median(Candidate$RT_Used,na.rm=T)
       RTsetWindow <- RetentionTimeWindow/2
-      
+
       temp <- temp[RT_Used>(RTset-RTsetWindow)&RT_Used<(RTset+RTsetWindow),.SD,]
       if(dim(temp)[1]==0){
         temp <- temp2
@@ -4529,7 +4552,7 @@ DetectPeakWrapper <- function(
       transidf[transidf==-1]<- 0
       # print("DetectPeak Start")
       rm("PeakDetected")
-      try({PeakDetected <- DetectPeak(rt_pep = Candidate$RT_Used,
+      try({PeakDetected <<- DetectPeak(rt_pep = Candidate$RT_Used,
                                       Peakwidth = RetentionTimeWindow,
                                       transitions = transidf,
                                       RT = temp$RT_Used,
@@ -4612,7 +4635,7 @@ DetectPeakWrapper <- function(
     })
     DPDT <<- rbindlist(DPlistDT)
     # Deciding on precursors per rawfile, which need to be requantified
-    
+    DPDT[rawfile=="Rowlf_20210528_MVB_HS_Surequant_1000fmJPTpeps_inPhosmix_317peps_Light.raw"]
     Reassign <- DPDT[,{
       temp <- .SD
       temp$FDR[is.na(temp$FDR)] <- 10
@@ -4643,6 +4666,7 @@ DetectPeakWrapper <- function(
       
       if(all(is.na(Quantiles))){
         # print("NULL")
+        print(paste("NULL for", .BY$rawfile))
         Quantiles <- NULL
       }else{
         # print("FUN")
