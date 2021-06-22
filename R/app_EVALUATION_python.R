@@ -59,7 +59,8 @@ if(length(args1) >0){
 print("Evaluating Path")
 if(!exists("SystemPath")){
 
-  SystemPath <- dirname(dirname(rstudioapi::documentPath()))
+  try(SystemPath <- dirname(dirname(rstudioapi::documentPath())))
+  SystemPath <- "/Users/henno/Dropbox/RPackages/Vali_git"
   
 }
 print("Evaluating Path 2")
@@ -159,8 +160,7 @@ ui <- fluidPage(
                           column(3,selectInput("sortType","Sorting",c("FDR","DL_Scores","RF_Scores","Count","SCA","Rating","mz"),selected = "DL_Scores")),
                           column(2,prettyRadioButtons("Decreasing","+/-",c("+","-"),selected = "-",inline = T))
                  ),
-                 # fluidRow(column(9,uiOutput("rawfile")),column(1,checkboxInput("allRawFiles","all",FALSE)),column(2,textOutput("PrecursorQuality"))),
-                 
+
                  
                  # chromatogram --------- plot
                  wellPanel(style = "background-color: #ffffff;",
@@ -436,6 +436,7 @@ ui <- fluidPage(
 server <- function(input, output, session){
   ## Removes Peaks from a m/z
   observeEvent(c(input$reset,input$Requantify_Priority),{
+    print("Reseting")
     DBL <<- dblistT(dbpath())
     db <- dbConnect(SQLite(),dbpath())
     dbname <- dbtaName(AnalyzedTransitions(),dbpath())
@@ -589,6 +590,7 @@ server <- function(input, output, session){
   })
   # Unknown Settings ##########
   observeEvent(input$ExcludePrecursor,{
+    
     if(any(dblistT(db = dbpath())== "ExcludedPrecursors")){
       append = T
     }else{
@@ -744,8 +746,7 @@ server <- function(input, output, session){
   })
   ##  Sequences for Ui from precursors()
   output$pc1 <- renderUI({
-    
-    
+
     precursorTable <- precursors()
     validate(
       need(is.data.frame(precursorTable),"no Sequences")
@@ -792,6 +793,7 @@ server <- function(input, output, session){
   })
   ## precursor Selection
   precursors.i <- reactive({
+    
     prec <<- precursors()
     mztest<<- mz()
     
@@ -861,7 +863,7 @@ server <- function(input, output, session){
   LoadValues <- reactiveValues(x = NULL)
   ## selectizeInput vor transitions
   output$selected_transitions = renderUI({
-    
+    print("Waiting for Transitions")
     validate(need(length(colnames(TransitionsSelected()))>0,""),
              need(length(colnames(TransitionsSelected()))>0,"")
     )
@@ -887,8 +889,9 @@ server <- function(input, output, session){
         sel <- sel[1:10]
       }
     }
-    
+  
     trans <- trans[trans!="rawfile"]
+    print("Transitions Done")
     selectizeInput("selected_transitions", "fragments",
                    trans,selected=sel,multiple = T)
   })
@@ -903,23 +906,23 @@ server <- function(input, output, session){
   })
   ## Rawfiles
   rawfiles <- reactive({
+    print("Rawfiles")
     PrecursorSelectionTable <<- dbread("PrecursorSelectionTable",dbpath())
     RF <- unique(PrecursorSelectionTable$rf)
-    try({
-      anatemp <- AnalyzedTransitions()
-      RF <- lapply(anatemp,function(x){unique(x$rawfile)})
-      
-      # RF <- lapply(AnalyzedTransitions(),function(x){unique(x$rawfile)})
-      RF <- unique(unlist(RF))
-      RFiles <<- RF
-      RF <- RF[RF!= ""]
-    })
+    # try({
+    #   anatemp <- AnalyzedTransitions()
+    #   RF <- lapply(anatemp,function(x){unique(x$rawfile)})
+    #   
+    #   # RF <- lapply(AnalyzedTransitions(),function(x){unique(x$rawfile)})
+    #   RF <- unique(unlist(RF))
+    #   RFiles <<- RF
+    #   RF <- RF[RF!= ""]
+    # })
     
     return(RF)
   })
   ## Rawfiles UI
   output$rawfile <- renderUI({
-    
     # SEL <- unique(unlist(sapply(precursors.i.selected(),function(x){which(x == PrecursorSelectionTable$Species)})))
     # rf <- PrecursorSelectionTable[SEL,]
     # RF <- rf$rf[rf$Count > minthresh]
@@ -939,6 +942,7 @@ server <- function(input, output, session){
   # Plotting Stuff ############
   # Transitions Plotting Function
   TransPlotReactive <- reactive({
+    print("Traceplot start")
     #Obtain Data
     validate(
       need(is.list(AnalyzedTransitions()),"No Fragments"),
@@ -951,7 +955,7 @@ server <- function(input, output, session){
     )
     
     {
-      print( "Traceplot start")
+      print("Transplot Reactive")
       validate(need(file.exists(input$mainPath),"No valid directory."))
       setwd(input$mainPath)
       test <- T
@@ -1455,6 +1459,7 @@ server <- function(input, output, session){
   })
   # total scanrange of current run
   intialRanges <- reactive({
+    print("Initialranges")
     xr <- range(unlist(lapply(AnalyzedTransitions(),function(x){range(x$RT_Used,na.rm = T)})),na.rm = T)
     
     if(input$MStype == "MS2"){
@@ -1484,6 +1489,7 @@ server <- function(input, output, session){
   ## navigation arrows ----------
   # Zoom
   observeEvent(input$Plus,{
+    
     if(length(ranges$x) == 0){
       ranges$x <-  intialRanges()$x
     }
@@ -1721,6 +1727,7 @@ server <- function(input, output, session){
   })
   # Noramlization based on msms.txt (requires MQ)
   MSMS <- reactive({
+    print("MSMS Stuff?")
     # Creates RawFile Specific Normalization Factors
     evipath <- paste(input$MaxQuant,"evidence.txt",sep = "/")
     if(file.exists(evipath)){
@@ -1760,6 +1767,7 @@ server <- function(input, output, session){
   })
   # Reads TableList  from database-----
   analyzedList <- reactive({
+    print("Reading analyzedList")
     validate(need(file.exists(dbpath()),"No Database available."),
              need(file.exists(input$mainPath),"Please set an valid analysing folder path."))
     
@@ -1811,17 +1819,18 @@ server <- function(input, output, session){
   ## MS2
   # Reads Transitions 
   AnalyzedTransitions1 <- reactive({
+    print("Starting AnalyzedTransitions1")
     validate(need(is.character(precursors.i()),""),
              need(file.exists(dbpath()),""),
              need(is.character(input$rawfile.i),""))
-    
-    
+    # print("Pausing AnalyzedTransitions1")
+    # Sys.sleep(2)
     if(precursors.i() == "all"){
       # not available anymore
       tl <- analyzedList()
     }else{
-      Pre <<- precursors.i()
-      aL <<- analyzedList()
+      Pre <- precursors.i()
+      aL <- analyzedList()
       tln <- aL[match(Pre,aL)]
       if(all(is.na(tln))){
         showNotification("No entry match in the database.")
@@ -1876,8 +1885,7 @@ server <- function(input, output, session){
           selec.i <- selec.i[selec.i!="rawfile"]
           tr <- tr[tr!="rawfile"]
           updateSelectizeInput(session,"selected_transitions",choices =tr,selected =selec )
-          print("SelectizeInput Updated")
-          
+
         }
         return(Tempx)
       })
@@ -1894,6 +1902,7 @@ server <- function(input, output, session){
       x$FDR <- p.adjust(x$FDR,"none")
       x
     })
+    print("AnalyzedTransitions1 Done")
     return(tl)
   })
   # Modify Transitions# should become obsolete
@@ -1904,6 +1913,8 @@ server <- function(input, output, session){
     )
     if(length(AnalyzedTransitions1()) == 0){return(NULL)}
     if(length(AnalyzedTransitions1()) > 0){
+      print("Starting AnalyzedTransitions")
+      
       A  <<- AnalyzedTransitions1()
       st <- NULL
       if(length(st) > 0){
@@ -1919,51 +1930,109 @@ server <- function(input, output, session){
       
       # Apply ZeroNeighbour Imputation
       if(input$EnableNeighborZeroImputation){
-        
+        progress <- Progress$new(session,max=length(A))
+        progress$set(message= "Applying ZeroNeighbour Imputation",value=0)
+        on.exit(progress$close())
+        itx <<- 0
         A <- lapply(A,function(tempi){
+          itx <<- 1
+          
           tempi <<- tempi
           # stop()
+          
           tra <- tempi[,1:(which(colnames(tempi)=="charge")-1)]
+          cat("\rFinding Zeros")
           tra2 <- apply(tra,2,function(x){
-            x <- x
-            
-            zero <- sapply(1:length(x),function(i){
-              i <- i
-              # cat("\r",i)
-              be <- F
-              af <- F
-              if(x[i]<=0){
-                try(be <- x[i-1]>1)
-                try(af <- x[i+1]>1)
-                if(length(be)==0|is.na(af)){
-                  be <- F
-                  af <- F
-                }
+            x <<- x
+            xfu <- which(x<=0)
+            whichxfu <- which(diff(xfu)>1)
+            if(length(whichxfu)>0){
+              zero <- sapply(whichxfu,function(i){
+                i <- i
+                # cat("\r",i)
+                be <- F
+                af <- F
                 
                 
-                if(be&af){
-                  T
+                if(x[i]<=0){
+                  try(be <- x[i-1]>1)
+                  try(af <- x[i+1]>1)
+                  if(length(be)==0|is.na(af)){
+                    be <- F
+                    af <- F
+                  }
+                  
+                  
+                  if(be&af){
+                    T
+                  }else{
+                    F
+                  }
+                  
                 }else{
                   F
                 }
                 
-              }else{
-                F
-              }
+              })
               
-            })
-            # plot(x,type="b")
-            # x[zero] <- NA
-            # points(x,col=2)
-            x[zero] <- NA
+              x[whichxfu][zero] <- NA
+            }
             
             x
+            
           })
-          
+          cat("\rPerforming Imputation")
           tra3 <- Neighbour_Mean_imputation(tra2)
           tempi[,1:(which(colnames(tempi)=="charge")-1)] <- tra3
+          progress$set(value=)
+          
           tempi
         })
+        
+        # A <- lapply(A,function(tempi){
+        #   tempi <<- tempi
+        #   # stop()
+        #   tra <- tempi[,1:(which(colnames(tempi)=="charge")-1)]
+        #   tra2 <- apply(tra,2,function(x){
+        #     x <- x
+        #     
+        #     zero <- sapply(1:length(x),function(i){
+        #       i <- i
+        #       # cat("\r",i)
+        #       be <- F
+        #       af <- F
+        #       if(x[i]<=0){
+        #         try(be <- x[i-1]>1)
+        #         try(af <- x[i+1]>1)
+        #         if(length(be)==0|is.na(af)){
+        #           be <- F
+        #           af <- F
+        #         }
+        #         
+        #         
+        #         if(be&af){
+        #           T
+        #         }else{
+        #           F
+        #         }
+        #         
+        #       }else{
+        #         F
+        #       }
+        #       
+        #     })
+        #     # plot(x,type="b")
+        #     # x[zero] <- NA
+        #     # points(x,col=2)
+        #     x[zero] <- NA
+        #     
+        #     x
+        #   })
+        #   
+        #   tra3 <- Neighbour_Mean_imputation(tra2)
+        #   tempi[,1:(which(colnames(tempi)=="charge")-1)] <- tra3
+        #   tempi
+        # })
         
       }
       if(input$supersmooth_I_set){
@@ -2052,12 +2121,13 @@ server <- function(input, output, session){
         })
         
       }
-      
       return(A)
     }else{return(AnalyzedTransitions1())}
+    cat("AnalyzedTransitione Done")
   })
   # Transitions Selecter -------  
   Transitions <- reactive({
+    print("Transitions")
     SelectedTrans <- AnalyzedTransitions1()
     if(length(SelectedTrans)> 0){
       coln <- lapply(SelectedTrans,colnames)
@@ -2074,7 +2144,7 @@ server <- function(input, output, session){
   })
   # Check function, updating available transition checkbox
   observeEvent(input$all_Transitions,{
-    
+    print("OBSERVING ALL TRANSITIONS")
     validate(need(length(colnames(Transitions()))>0),"No Transitions selected")
     
     updateSelectizeInput(session,"selected_transitions",selected = colnames(Transitions()))
@@ -2082,6 +2152,7 @@ server <- function(input, output, session){
   
   # available Transitions: 
   TransitionsSelected <- reactive({
+    print("Transitions Check")
     SelectedTrans <- AnalyzedTransitions()
     if(length(SelectedTrans)> 0){
       SelectedTrans <- SelectedTrans[[1]]
@@ -2094,6 +2165,7 @@ server <- function(input, output, session){
   
   # Preselecting Candidates:
   RTcandidates <- reactive({
+    print("RT RTcandidates")
     RTcandidatesFun(AnalyzedTransitions(),input$FDRpep)
   })
   # MAIN Peak detection/quantification Modul 
@@ -2130,7 +2202,7 @@ server <- function(input, output, session){
     })
     # Reanalysis_Check <- T
     print("Reanalysis_Check:")
-    print(Reanalysis_Check)
+    # print(Reanalysis_Check)
     DPW  <- try({
       dbp <<- dbp
       qType <<- qType
@@ -2163,6 +2235,7 @@ server <- function(input, output, session){
   
   ## Automated Ares PEAKS Finding MODUL ########
   RTcandidatesAreaSearch <- reactive({
+    print("RT candidates AreaSearch")
     RTcandidatesFun(AnalyzedTransitions(),input$FDRpep,ranges$x)
   })
   # Set Search in this Ares
@@ -2357,7 +2430,7 @@ server <- function(input, output, session){
           
         }
         if(any(seldp)|1){
-          print(rfaall)
+          # print(rfaall)
           for(rfa in rfaall){
             # Quantify Peak:
             tempa <- ana[[a]]
@@ -2375,7 +2448,7 @@ server <- function(input, output, session){
             print("\rDETECT PEAK MANUAL Start")
             X_limit <- X_limit
             PeakDetected <- DetectPeak(pe <- min(X_limit,na.rm = T)+diff(X_limit)/2,diff(X_limit)/2,transManual,info$RT_Used,presetQuantiles = X_limit)#$quantile
-            print(PeakDetected)
+            # print(PeakDetected)
             print("\rDETECT PEAK MANUAL Finish")
             
             infoquantile <- info[info$RT_min>= min(PeakDetected$quantile,na.rm = T)&info$RT_min<=max(PeakDetected$quantile,na.rm= T),]
@@ -2450,10 +2523,9 @@ server <- function(input, output, session){
             dbwrite(x = DP,name = dbtaNameVec,db =dbpath(),overwrite = T)
             print("Changed")
             DPinit <<- DPinit
-            print(paste(DPinit$Q1,DPinit$Q2))
-            print("to")
-            print(paste(DPout$Q1,DPout$Q2))
-            print(dbtaNameVec)
+            # print(paste(DPinit$Q1,DPinit$Q2))
+            # print(paste(DPout$Q1,DPout$Q2))
+            # print(dbtaNameVec)
             print("Finished writing to db")
             # DPtest <- dbread(x = dbtaNameVec,db =dbpath())
             
@@ -2543,7 +2615,7 @@ server <- function(input, output, session){
   inputList <- reactive({
     validate(need(is.character(precursors.i()),"No Precursors."),
              need(is.character(input$rawfile.i),"No Raw Files selected."))
-    
+    print("List for automated Export")
     fifu <- paste(precursors.i(),input$rawfile.i,sep = "_")
     if(length(fifu) > 0){
       wd <- getwd()
@@ -2587,25 +2659,28 @@ server <- function(input, output, session){
   })
   # Peak Assignments
   observeEvent(input$GoodPeak,{
-    
+    print("GoodPeak")
     dbn <- dbtaName(AnalyzedTransitions(),dbpath())
     for(dbni in dbn){
       SavePrecursorRating(rating = "good",db = dbpath(),dbtaName = dbni )
     }
   })
   observeEvent(input$BadPeak,{
+    print("BAdPeak")
     dbn <- dbtaName(AnalyzedTransitions(),dbpath())
     
     for(dbni in dbn){
       SavePrecursorRating(rating = "bad",db = dbpath(),dbtaName = dbni )
     }  })
   observeEvent(input$notdefinedPeak,{
+    print("SavePrecursor")
     dbn <- dbtaName(AnalyzedTransitions(),dbpath())
     
     for(dbni in dbn){
       SavePrecursorRating(rating = "not defined",db = dbpath(),dbtaName = dbni )
     }  })
   output$PrecursorQuality <- renderText({
+    print("Quality")
     PrecursorQuality <- list(rating = "nodefined")
     input$notdefinedPeak
     input$BadPeak
@@ -2613,8 +2688,10 @@ server <- function(input, output, session){
     validate(need(file.exists(dbpath()),"No Path Set"),
              need(is.list(AnalyzedTransitions()),"No Transitions available.")
     )
+    print("Waiting for names")
+    dbf <- paste("RATING",dbtaName(AnalyzedTransitions(),dbpath()),sep = "_")
+    print("Received Names")
     
-    dbf <<- paste("RATING",dbtaName(AnalyzedTransitions(),dbpath()),sep = "_")
     PrecursorQuality <- ""
     if(any(!is.na(match(dbf,dblistT(dbpath()))))){
       try(PrecursorQuality <- sapply(dbf,function(dbfi){    try(PrecursorQuality<- dbread(dbfi,dbpath())$rating)}))
