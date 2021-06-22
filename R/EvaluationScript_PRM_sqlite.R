@@ -4603,7 +4603,7 @@ DetectPeakWrapper <- function(
   if(RT_BASED_onbestScore&length(DPlist)>1&Requantify_Priority!="none"){
     print("Reassign")
     # Extracting Windows
-    DPlistDT <- lapply(1:length(DPlist),function(x){
+    DPlistDT <<- lapply(1:length(DPlist),function(x){
       tempu <- DPlist[[x]];
       tempu$Precursor<-names(DPlist)[x];
       tempu <- data.table(tempu,stringsAsFactors=F)
@@ -4661,99 +4661,7 @@ DetectPeakWrapper <- function(
     Reassign <- unique(Reassign)
     Reassign <- Reassign[!is.na(Reassign$Precursor),]
     if(dim(Reassign)[1]>0){
-      # Reassign[,{
-      #   
-      #   tempReassing <- .SD
-      #   gr <- .BY
-      #   it <- which(names(ana)!=gr$Precursor)
-      #   tempana <- ana[[it]]
-      #   dbtaNameVec <- dbtaName(ana,dbp)[it]
-      #   DP <- dbread(dbtaNameVec,dbp)
-      #   DP <- data.table(DP,stringsAsFactors=F)
-      #   tempana <- data.table(tempana,stringsAsFactors=F)
-      #   Corrected <- tempana[!is.na(match(rawfile,tempReassing$rawfile)),{
-      #     # cat("\r",.GRP,.BY$rawfile)
-      #     tempana_rf <- .SD
-      #     grp <- .BY
-      #     if(dim(tempana_rf)[1]==0){
-      #       OutTable <- NULL
-      #     }else{
-      #       # stop()
-      #       # Extract transitions
-      #       transidf <- tempana_rf[,.SD,.SDcols=1:(which(names(tempana) =="charge")-1)]
-      #       transidf <- as.data.frame(transidf)
-      #       trans <<- SplitTransitionInfo(tempana_rf)
-      #       trans$Transitions[trans$Transitions==-1]<-0
-      #       # Specify RT range
-      #       rangeinit <<- tempReassing[rawfile==grp$rawfile,.(Q1,Q2)]
-      #       if(dim(rangeinit)[1]>0){
-      #         
-      #         RANGE <- range(rangeinit)
-      #         # print("DetectPeak Start")
-      #         PeakDetected <- list(quantile=c(NA,NA),XIC=NA,intensity=NA)
-      #         try({PeakDetected <- DetectPeak(rt_pep = mean(RANGE),
-      #                                         Peakwidth = diff(RANGE),
-      #                                         transitions = trans$Transitions,
-      #                                         RT = trans$Info$RT_Used,
-      #                                         presetQuantiles = RANGE,
-      #                                         FDR=NULL,
-      #                                         scores=trans$Info$DL_Scores,
-      #                                         MinPeakWidth = MinPeakWidth,
-      #                                         MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set
-      #         )})#$quantile
-      #         temp <- trans$Info
-      #         infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
-      #         infoquantile <- infoquantileParser(infoquantile)
-      #         infoquantile <-rbind(infoquantile,infoquantile)
-      #         infoquantile <- apply(infoquantile,2,as.double)
-      #         
-      #         PeakDetected$all <- NULL     
-      #         QuantitationType <- c("XIC","Intensities")
-      #         Q <- PeakDetected$quantile
-      #         if(length(Q) == 0){
-      #           Q = as.double(c(NA,NA))
-      #         }
-      #         
-      #         IntensityStuff <- rbind(PeakDetected$XIC,PeakDetected$intensity)
-      #         IntensityStuff <- data.frame(IntensityStuff)
-      #         IntensityStuff$Q1 <- Q[1]
-      #         IntensityStuff$Q2 <- Q[2]
-      #         IntensityStuff$Q1align <- Q[1]
-      #         IntensityStuff$Q2align <- Q[2]
-      #         IntensityStuff$Peaks <- as.double(NA)
-      #         IntensityStuff$QuantitationType <- QuantitationType
-      #         OutTable <- cbind(IntensityStuff,infoquantile)
-      #       }else{
-      #         OutTable <- NULL
-      #       }
-      #       
-      #       # if(cleandata){
-      #       #   OutTable$Q1 <- as.double(NA)
-      #       #   OutTable$Q2 <- as.double(NA)
-      #       #   OutTable$Q1align <- as.double(NA)
-      #       #   OutTable$Q2align <- as.double(NA)
-      #       #   
-      #       #   OutTable[,1:which(colnames(OutTable)=="Q1")]<- as.double(NA)
-      #       #   
-      #       # }else{
-      #       #   OutTable <-   as.list(OutTable)
-      #       #   
-      #       # }
-      #       # OutTable <<- OutTable
-      #     }
-      #     
-      #     OutTable
-      #   },rawfile]
-      #   
-      #   DPnochange <- DP[is.na(match(rawfile,Corrected$rawfile)),]
-      #   DPnew <- rbind(DPnochange,Corrected)
-      #   cat("\rrewriting",dbtaNameVec)
-      #   if(dim(DPnew)[1]==dim(DP)[1]){
-      #     dbwrite(DPnew,dbtaNameVec,dbp,overwrite = T)
-      #   }
-      #   
-      #   NULL
-      # },Precursor]
+     
       sapply(1:dim(Reassign)[1],function(its){
         tempReassing <- Reassign[its,]
         gr <- tempReassing$Precursor
@@ -4840,16 +4748,18 @@ DetectPeakWrapper <- function(
               OutTable
             },rawfile]
             DPnochange <- DP[is.na(match(rawfile,Corrected$rawfile)),]
-            
-            DPnew <- rbind(DPnochange,Corrected)
-
-            cat("\rrewriting",dbtaNameVec)
-            
-            if(dim(DPnew)[1]==dim(DP)[1]){
-              dbwrite(DPnew,dbtaNameVec,dbp,overwrite = T)
+            if(dim(Corrected)[1]>0){
+              DPnew <- rbind(DPnochange,Corrected)
+              
+              cat("\rrewriting",dbtaNameVec)
+              
+              if(dim(DPnew)[1]==dim(DP)[1]){
+                dbwrite(DPnew,dbtaNameVec,dbp,overwrite = T)
+              }
             }
+           
           }
-          DPnew
+          # DPnew
         }else{
           NULL
         }

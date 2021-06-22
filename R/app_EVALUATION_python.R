@@ -58,9 +58,7 @@ if(length(args1) >0){
 }
 print("Evaluating Path")
 if(!exists("SystemPath")){
-
   try(SystemPath <- dirname(dirname(rstudioapi::documentPath())))
-  SystemPath <- "/Users/henno/Dropbox/RPackages/Vali_git"
   
 }
 print("Evaluating Path 2")
