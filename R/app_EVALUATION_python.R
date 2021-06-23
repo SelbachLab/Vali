@@ -1195,116 +1195,118 @@ server <- function(input, output, session){
             
             if(dim(subDat)[1]==0){
               # print("NO DATA")
-              return("NO DATA")
-            }
-            # yl <- ylim
-            # xl <- xlim
-            # showNotification(paste(xl,collapse = " "))
-            Pe <- PeaksServer
-            Ce <- CenterPeak
-            
-            # yl <-
-            PeaksSel <- NA
-            
-            # Defining Peaks:
-            PeaksTable <- PeaksFunFun[[i]]
-            Peaks <- PeaksTable$Peaks
-            names(Peaks) <- PeaksTable$rawfile
-            PeaksSel <- Peaks[names(Peaks) == rf]
-            # print("subset2")
-            if(!Align){
-              Ppos <- subset(PeaksTable,select = c("Q1","Q2"))
-              
+              TransplotListALL[[ITplotting]] <- NULL
             }else{
-              if(any(colnames(PeaksTable) == "Q1align")){
-                Ppos <- subset(PeaksTable,select = c("Q1align","Q2align"))
-              }else{
-                print("WARNING no alignment information available")
+              # yl <- ylim
+              # xl <- xlim
+              # showNotification(paste(xl,collapse = " "))
+              Pe <- PeaksServer
+              Ce <- CenterPeak
+              
+              # yl <-
+              PeaksSel <- NA
+              
+              # Defining Peaks:
+              PeaksTable <- PeaksFunFun[[i]]
+              Peaks <- PeaksTable$Peaks
+              names(Peaks) <- PeaksTable$rawfile
+              PeaksSel <- Peaks[names(Peaks) == rf]
+              # print("subset2")
+              if(!Align){
                 Ppos <- subset(PeaksTable,select = c("Q1","Q2"))
+                
+              }else{
+                if(any(colnames(PeaksTable) == "Q1align")){
+                  Ppos <- subset(PeaksTable,select = c("Q1align","Q2align"))
+                }else{
+                  print("WARNING no alignment information available")
+                  Ppos <- subset(PeaksTable,select = c("Q1","Q2"))
+                  
+                }
                 
               }
               
-            }
-
-            Pposi <- Ppos
-            Ppos <- Ppos[PeaksTable$rawfile == rf,]
-            Ppos <- unlist(Ppos)
-            Ppos <- range(unlist(Ppos),na.rm = T)
-            
-            
-            # Defining Ranges: XL
-            
-            # if(length(rangessetx) > 0){
-            #   xl <- rangessetx
-            # }
-            # if(length(xl)==0&SimultaneousMassShiftvec){
-            #   xl <- xlPreset
-            # }
-            
-            # XL Center Peak:
-            print("Center Peak")
-            PeaksSel <- PeaksSel
-            
-            if(Ce){
-              print(Ppos)
-              if(length(Ppos)==2&all(!is.infinite(Ppos))&all(!is.na(Ppos))){
-                xl <- Ppos+diff(Ppos)*c(-0.1,0.1)
+              Pposi <- Ppos
+              Ppos <- Ppos[PeaksTable$rawfile == rf,]
+              Ppos <- unlist(Ppos)
+              Ppos <- range(unlist(Ppos),na.rm = T)
+              
+              
+              # Defining Ranges: XL
+              
+              # if(length(rangessetx) > 0){
+              #   xl <- rangessetx
+              # }
+              # if(length(xl)==0&SimultaneousMassShiftvec){
+              #   xl <- xlPreset
+              # }
+              
+              # XL Center Peak:
+              print("Center Peak")
+              PeaksSel <- PeaksSel
+              
+              if(Ce){
+                print(Ppos)
+                if(length(Ppos)==2&all(!is.infinite(Ppos))&all(!is.na(Ppos))){
+                  xl <- Ppos+diff(Ppos)*c(-0.1,0.1)
+                }
               }
+              
+              
+              cat("\rStarting TracePlot")
+              colAll = 2
+              #LoadSettings(type = plottype,frame = allrf,FDRCutOff = FDRpep,Ppos = as.numeric(Ppos),colmap = TransCole,xl =xl,yl = yl,TransitionColors = TransitionColors,col = colAll,add = add,secPlotType = secPlotType,p.value = p.value,RetTime = c(ILtemp$Start,ILtemp$End),PRMonly = T,AddSecondPlot = precursors.i.selected() != "all",onlySignificant = SignificantOnly,xlab = "Retention time [min]",ylab = "Intensity",blankplot = allrf)
+              # subDat <- xhui
+              
+              
+              ylset <<- yl
+              xlset <<- xl
+              # if(length(xl)==2&all(!is.na(xl))){
+              #   sel <-subDat$RT_Used>=min(xl)&subDat$RT_Used<=max(xl)
+              #   subDat<-subDat[sel,]
+              #
+              # }
+              cat("\rStart Traceplot")
+              
+              # p1<- TransitionGGplotG(subDat,ILtemp,Ppos,secPlotType)
+              # p1
+              
+              
+              cat("\rEnded TracePlot")
+              
+              
+              
+              TransplotList <- list(x=subDat,
+                                    type = plottype,
+                                    frame = setallrf,
+                                    FDRCutOff = FDRpep,
+                                    Ppos = as.numeric(Ppos),
+                                    colmap = TransCole,
+                                    xl =xl,
+                                    yl = yl,
+                                    TransitionColors = TransitionColors,
+                                    col = colAll,
+                                    add = add,
+                                    secPlotType = secPlotType,
+                                    p.value = p.value,
+                                    RetTime = c(ILtemp$Start,ILtemp$End),
+                                    PRMonly = T,
+                                    AddSecondPlot = precursors.i.selectedvec != "all",
+                                    onlySignificant = SignificantOnly,
+                                    xlab = "Retention time [min]",
+                                    ylab = "Intensity",
+                                    blankplot = setallrf,
+                                    namesAna = names(ana)[i],
+                                    SelectedPrecursor = precursors.i.selectedvec[1],
+                                    Peaks=Peaks,
+                                    PeaksSel= PeaksSel,
+                                    SelectedMass=SelectedMass,
+                                    rf = rf)
+              class(TransplotList) <- c("TransplotList","list")
+              TransplotListALL[[ITplotting]] <- TransplotList
+              
             }
             
-            
-            cat("\rStarting TracePlot")
-            colAll = 2
-            #LoadSettings(type = plottype,frame = allrf,FDRCutOff = FDRpep,Ppos = as.numeric(Ppos),colmap = TransCole,xl =xl,yl = yl,TransitionColors = TransitionColors,col = colAll,add = add,secPlotType = secPlotType,p.value = p.value,RetTime = c(ILtemp$Start,ILtemp$End),PRMonly = T,AddSecondPlot = precursors.i.selected() != "all",onlySignificant = SignificantOnly,xlab = "Retention time [min]",ylab = "Intensity",blankplot = allrf)
-            # subDat <- xhui
-            
-            
-            ylset <<- yl
-            xlset <<- xl
-            # if(length(xl)==2&all(!is.na(xl))){
-            #   sel <-subDat$RT_Used>=min(xl)&subDat$RT_Used<=max(xl)
-            #   subDat<-subDat[sel,]
-            #
-            # }
-            cat("\rStart Traceplot")
-            
-            # p1<- TransitionGGplotG(subDat,ILtemp,Ppos,secPlotType)
-            # p1
-            
-            
-            cat("\rEnded TracePlot")
-            
-            
-            
-            TransplotList <- list(x=subDat,
-                                  type = plottype,
-                                  frame = setallrf,
-                                  FDRCutOff = FDRpep,
-                                  Ppos = as.numeric(Ppos),
-                                  colmap = TransCole,
-                                  xl =xl,
-                                  yl = yl,
-                                  TransitionColors = TransitionColors,
-                                  col = colAll,
-                                  add = add,
-                                  secPlotType = secPlotType,
-                                  p.value = p.value,
-                                  RetTime = c(ILtemp$Start,ILtemp$End),
-                                  PRMonly = T,
-                                  AddSecondPlot = precursors.i.selectedvec != "all",
-                                  onlySignificant = SignificantOnly,
-                                  xlab = "Retention time [min]",
-                                  ylab = "Intensity",
-                                  blankplot = setallrf,
-                                  namesAna = names(ana)[i],
-                                  SelectedPrecursor = precursors.i.selectedvec[1],
-                                  Peaks=Peaks,
-                                  PeaksSel= PeaksSel,
-                                  SelectedMass=SelectedMass,
-                                  rf = rf)
-            class(TransplotList) <- c("TransplotList","list")
-            
-            TransplotListALL[[ITplotting]] <- TransplotList
             
             
           }
@@ -1341,9 +1343,10 @@ server <- function(input, output, session){
   
   output$PlotOutput <- renderPlot({
     CheckTransPlot <<- TransPlotReactive()
+    CheckTransPlot <- CheckTransPlot[lengths(CheckTransPlot)>0]
     print("TransPlotReactive Result:")
     print(length(CheckTransPlot))
-    validate(need(is.list(CheckTransPlot),"No Data"))
+    validate(need(length(CheckTransPlot)>0,"No Data"))
     # add validate here 
     
     # validate(
@@ -3064,4 +3067,7 @@ server <- function(input, output, session){
 
 
 shinyApp(ui = ui,server = server)
+
+# profvis::profvis(runApp(shinyApp(ui, server)),interval = 100)
+
 
