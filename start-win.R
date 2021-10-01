@@ -32,7 +32,9 @@ print(paste("Sourcing",other.name,"from",script.name))
 
 #####
 # checking for packages:
-for(pck in c("shiny","RSQLite","pracma","parallel","gtools","h2o","Peptides","enviPat","shinyWidgets","compiler","tcltk","rstudioapi")){
+for(pck in c("shiny","RSQLite","pracma","parallel","gtools","h2o","Peptides","enviPat","shinyWidgets","compiler","tcltk","rstudioapi",
+             "ggplot2","dplyr","hexbin","protViz","scales","tidyr","tidyverse","yaml"
+             )){
   
 if(!require(pck,character.only = T)){
   try({
@@ -81,7 +83,7 @@ ShinyStarter <- paste(SystemPath,"R/app_EVALUATION_python.R",sep = "/")
 if(file.exists(ShinyStarter)){
   print("Starting Vali")
   print(ShinyStarter)
-  runApp(ShinyStarter,launch.browser = T)
+  runApp(ShinyStarter)
 }
 
 

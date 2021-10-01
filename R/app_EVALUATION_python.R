@@ -396,7 +396,7 @@ ui <- fluidPage(
                  textOutput("analyzedListPath")
                )
                
-               
+              
       ),
       tabPanel("Advanced Settings",icon=icon("skull-crossbones"),
                # sliderInput(inputId = "PeakWidth",label = "Peak Detection Width",min = 0,max = 40,step = 1,value = inputListStdSet$PeakWidth),
@@ -409,6 +409,13 @@ ui <- fluidPage(
                  numericInput("MaxPeakWidth","MaxPeakWidth [min]",min=0,value=1/60*30)
                )
                ,
+               wellPanel(
+                helpText("MS2 Description Filter"),
+                fluidRow(column(6,textInput("ScanStringFilter","MS2 Description Filter",value = NULL)),
+                         column(6,switchInput("ScanStringFilterInvert","Exclude Selection",value = T))
+                
+                         
+                         )),
                switchInput("EnableNeighborZeroImputation","NeighbourZeroImputation",value = T),
                sliderInput(inputId = "RetentionTimeWindow",label = "Peak Window",min = 0,max = 10,step = 0.1,value = inputListStdSet$RetentionTimeWindow),
                wellPanel(
@@ -1680,7 +1687,8 @@ server <- function(input, output, session){
                               session = session,threads = input$Threads,
                               #pythonpath =pythonpath[as.numeric(input$Python3)+1],
                               test = input$Recompile,
-                              useDIA=input$DIA))
+                              useDIA=input$DIA,ScanStringFilter = input$ScanStringFilter,ScanStringFilterInvert = input$ScanStringFilterInvert
+                                ))
     
     session$reload()
     validate(need(file.exists(wd),"No valid directory."))
