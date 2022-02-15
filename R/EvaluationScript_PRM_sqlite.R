@@ -804,7 +804,9 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
   }
   
 }
-Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=10,ShowInfo=F,extraSink=T,SystemPath=NULL,session=NULL,DIA=T,ExtractMS1 = F,SaveScans=T,  descriptionfilter =NULL,InvertSearch=T){
+
+
+Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=10,scans_atOnce=2000,ShowInfo=F,extraSink=T,SystemPath=NULL,session=NULL,DIA=T,ExtractMS1 = F,SaveScans=T,  descriptionfilter =NULL,InvertSearch=T){
   # if(extraSink){
   #   sink("SessionSink.txt",split = T,type="message")
   # }
@@ -822,8 +824,11 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
     # outpath <<- outpath
     # r <<- r
     source(paste(SystemPath,"R/EvaluationScript_PRM_sqlite.R",sep = "/"))
-    system.time(RAW <- read.raw(file = r,rawDiag = F))
-    # system.time(RAW <- rawrr::readIndex( r)) # rawrr replacement
+    # colnames(RAW <- read.raw(file = r,rawDiag = F))
+    # system.time(RAW <- read.raw(file = r,rawDiag = T))
+    # rawrr::installRawFileReaderDLLs()
+    # rawrr::installRawrrExe()
+    system.time(RAW <- rawrr::readIndex(r)) # rawrr replacement
     
     dir.create(dirout)
     setwd(dirout)
@@ -856,7 +861,7 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
     
     ms2scans <- RAW[RAW$MSOrder == "Ms2",] # actual
     
-  
+    
     if(length(descriptionfilter)!=0){
       if(is.character(descriptionfilter)){
         foundi <- grepl(descriptionfilter,RAW$ScanDescription)
@@ -882,52 +887,58 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
         ms2scans <- ms2scans[MS2_undependent,]
       }
     }
-    # plot(density(ms2scans$StartTime))
-    # extracts scan numbers for ms2scans
-    # plot(as.numeric(gsub(",",".",ms2scans$StartTime)),as.numeric(gsub(",",".",ms2scans$BasePeakIntensity)),type = "l")
-    # plot(as.numeric(gsub(",",".",ms1scans$StartTime)),as.numeric(gsub(",",".",ms1scans$BasePeakIntensity)),type = "l")
     
-    ###
     ##
     #
     Precursors <- ST$mz
     PrecursorsWindows <- sapply(Precursors,ppmWindow,ppm = ppm1)
     
-    mz <- as.numeric(gsub(",",".",ms2scans$PrecursorMass))
-    mzuni <- unique(mz)
-    # for DIA
-    IsolationWidth_spacer <- 2*0.5
-    # currently switched OFF
-    IsolationWidth_spacer <- 0
-    
-    IsolationWindow <- ms2scans$IsolationWidth - IsolationWidth_spacer
-    if(IsolationWindow==0){
-      IsolationWindow <- ms2scans$IsolationWidth #- IsolationWidth_spacer
+    if(limitToMatchingMasses&!DIA){
+      WorthToBeScanned <- sapply( ms2scans$precursorMass,function(x){
+        any(PrecursorsWindows[1,1]<=x&PrecursorsWindows[2,1]<=x)
+      })
+      ms2scans <- ms2scans[WorthToBeScanned,]
       
     }
     
-    if(length(session) != 0){
-      Max <- TTdec[,1,.(SpecID,Matches)]
-      progress_internal2 <- Progress$new(session,min=0, dim(PrecursorsWindows)[2])
-      on.exit(progress_internal2$close())
-      progress_internal2$set(message = r,
-                             detail = "Scanning Fragment Masses",value = 0)
-    }
-    DIAwindows <- data.frame(lo = ms2scans$PrecursorMass -(IsolationWindow/2),up= ms2scans$PrecursorMass +(IsolationWindow/2))
+    
+    
+    
+    mz <- as.numeric(gsub(",",".",ms2scans$PrecursorMass))
+    mzuni <- unique(mz)
+    # for DIA
+    # IsolationWidth_spacer <- 2*0.5
+    # # currently switched OFF
+    # IsolationWidth_spacer <- 0
+    # 
+    # IsolationWindow <- ms2scans$IsolationWidth - IsolationWidth_spacer
+    # if(IsolationWindow==0){
+    #   IsolationWindow <- ms2scans$IsolationWidth #- IsolationWidth_spacer
+    #   
+    # }
+    # 
+    # if(length(session) != 0){
+    #   Max <- TTdec[,1,.(SpecID,Matches)]
+    #   progress_internal2 <- Progress$new(session,min=0, dim(PrecursorsWindows)[2])
+    #   on.exit(progress_internal2$close())
+    #   progress_internal2$set(message = r,
+    #                          detail = "Scanning Fragment Masses",value = 0)
+    # }
+    # DIAwindows <- data.frame(lo = ms2scans$PrecursorMass -(IsolationWindow/2),up= ms2scans$PrecursorMass +(IsolationWindow/2))
     dbscans <- dbConnect(SQLite(),scans_backup <- paste(basename(r),".sqlite",sep = ""))
-    SelectedScans <- apply(DIAwindows,1,function(x){
-      any(x[1]<=Precursors&x[2]>=Precursors)
-    })
-    
-    
-    sn <- ms2scans$scanNumber[SelectedScans]
+    # SelectedScans <- apply(DIAwindows,1,function(x){
+    #   any(x[1]<=Precursors&x[2]>=Precursors)
+    # })
+    # 
+    # 
+    sn <- ms2scans$scan#[SelectedScans]
     sn <- sort(sn)
     AllScansCount  <- length(sn)
-    scans_atOnce <- 2000
     scansToScan <- T
     startID <- 1
     ITXOVERchecker <<- 0
     while(scansToScan){
+      cat("\r",length(sn),"Scans ToGo")
       if(length(sn)<scans_atOnce){
         scans_atOnce <- length(sn)
         scansToScan <- F
@@ -935,10 +946,44 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
       temp_sn <- sn[sel <- startID:(startID+scans_atOnce)]
       temp_sn <- temp_sn[!is.na(temp_sn)]
       sn <- sn[-sel]
-      Spectra <- readScans(r,temp_sn)
-      names(Spectra)<- sapply(Spectra,function(x){x$scan})
-      ms2scans_subset <- ms2scans[MFUN <- match(temp_sn,ms2scans$scanNumber),]
-      DIAwindows_subset <- DIAwindows[MFUN,]
+      Spectra <- readSpectrum(r,temp_sn)
+      # cat("\r",startID,"Scanning ROund Finished.")
+      
+      names(Spectra) <- sapply(Spectra,function(x){x$scan})
+      # Filter Spectra
+      spiInfo <- lapply(Spectra,function(spi ){
+        spi <- spi
+        list(PrecursorMass= spi$pepmass,ScanDescription=spi$`Scan Description:`,
+             Iso_Width = as.numeric(spi$`MS2 Isolation Width:`),
+             Offset= as.numeric(spi$`MS2 Isolation Offset:`),
+             scanNumber=spi$scan,
+             startTime=spi$rtinseconds)
+      })
+      ms2scans_subset <- rbindlist(spiInfo)
+      table(ms2scans_subset$ScanDescription)
+      # Applying Filter: 
+      if(length(descriptionfilter)!=0){
+        if(is.character(descriptionfilter)){
+          foundi <- grepl(descriptionfilter,ms2scans_subset$ScanDescription)
+          if(any(foundi)){
+            if(InvertSearch){
+              Spectra2 <- Spectra[wh <- which(!foundi)] # Hack Surequant
+              ms2scans_subset <- ms2scans_subset[wh,]
+            }else{
+              Spectra2 <- Spectra[wh <- which(foundi)] # Hack Surequant
+              ms2scans_subset <- ms2scans_subset[wh,]
+              
+            }
+          }else{
+            next()
+          }
+          
+        }
+      }
+      
+      # Generating DIA Windows:
+      DIAwindows_subset <- data.frame(lo = ms2scans_subset$PepMass -(ms2scans_subset$Offset+ms2scans_subset$Iso_Width/2),
+                                      up= ms2scans_subset$PepMass +(ms2scans_subset$Offset+ms2scans_subset$Iso_Width/2))
       
       cat("\rRead",max(temp_sn),"from",max(sn))
       sapply(1:dim(PrecursorsWindows)[2],function(it){
@@ -948,7 +993,7 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
           progress_internal$set(message = r,
                                 detail = "Scanning Fragment Masses",value = it)
         }
-        # it <<- it
+        it <<- it
         lib_precursor <- PrecursorsWindows[,it]
         precursorInfo <- ST[it,]
         if(ShowInfo){
@@ -968,6 +1013,7 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
         }
         mz <- ms2scans_subset$PrecursorMass
         if(DIA){
+          stop("NotImplemented")
           TimeSelect <- ms2scans_subset$StartTime >= precursorInfo$Start&ms2scans_subset$StartTime<=precursorInfo$End
           DIAselect  <- DIAwindows_subset$lo <= ST$mz[it] & DIAwindows_subset$up >= ST$mz[it]
           EVENTS <- ms2scans_subset$scanNumber[DIAselect&TimeSelect]
@@ -975,7 +1021,9 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
           range(ms2scans_subset$StartTime[DIAselect&TimeSelect])
         }else{
           EVENTS <- ms2scans_subset$scanNumber[which(mz>=lib_precursor[1]&mz<=lib_precursor[2])]
-          
+          # if(length(EVENTS)>0){
+          #   stop()
+          # }
         }
         EVENTS <- EVENTS[!is.na(EVENTS)]
         if(length(EVENTS)>0){
@@ -1448,7 +1496,7 @@ Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFil
 args = commandArgs(trailingOnly=TRUE)
 load(\"Temp_ExtractorData.rda\")
 print(raws[as.numeric(args[1])])
-try({RawDiag_Vali_Extracter_DIA(raws[as.numeric(args[1])],dirout=dirout,outpath=outpath,ST=ST,TT=TT,TTdec=TTdec,ppm1=ppm1,ppm2=ppm2,
+try({Vali_Extracter_DIA(raws[as.numeric(args[1])],dirout=dirout,outpath=outpath,ST=ST,TT=TT,TTdec=TTdec,ppm1=ppm1,ppm2=ppm2,
                            SystemPath=SystemPath,DIA=useDIA,descriptionfilter =ScanStringFilter,InvertSearch=ScanStringFilterInvert)})"
     
     raws <- paste(RawFilePath,basename(raws),sep = "/")
@@ -1465,15 +1513,16 @@ try({RawDiag_Vali_Extracter_DIA(raws[as.numeric(args[1])],dirout=dirout,outpath=
     if(length(ScanStringFilter)==0){
       print("STOP NO ScanStringFilter")
     }
+    # switch between methods
+    Vali_Extracter_DIA <- Rawrr_Vali_Extracter_DIA
     
-    save(raws,RawDiag_Vali_Extracter_DIA,dirout,outpath,ST,TT,TTdec,ppm1,ppm2,SystemPath,useDIA,ScanStringFilterInvert,ScanStringFilter,file="Temp_ExtractorData.rda")
+    save(raws,Vali_Extracter_DIA,dirout,outpath,ST,TT,TTdec,ppm1,ppm2,SystemPath,useDIA,ScanStringFilterInvert,ScanStringFilter,file="Temp_ExtractorData.rda")
     if(length(threads)>length(raws)){
       threads <- length(raws)
     }
     
     initvec <- 1:length(raws)
     write(CommandFile,file= "R_RawFileExtractor_init.R")
-    
     progresslist <- list()
     if(length(session)>0){
       for(i in 1:threads){
@@ -1675,7 +1724,7 @@ CompilingDatabase <- function(mainPath,maxquant = NULL,session = NULL,test = F,S
         for(i in templ){
           
           cl <- class(try(te <- read.csv(i,sep = "\t",stringsAsFactors = F,check.names = F,row.names = NULL),silent = F))
-          if(length(unique(te$rawfile))>22){te <<- te ;print(i);stop()}
+          # if(length(unique(te$rawfile))>22){te <<- te ;print(i);stop()}
           if(cl!= "try-error"){
             
             if(dim(te)[1] > 0){

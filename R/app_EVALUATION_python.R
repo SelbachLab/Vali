@@ -13,13 +13,10 @@ require(rawDiag)
 require(compiler)
 library(tcltk)
 
-# library(compiler)# 
-# library(gplots)
-# library(drc)
-# library(shinydashboard)
 
+# options(warn=-1)
 
-options(warn=-1)
+options(warn=1)
 # library(gridExtra)
 #humpe
 args1 = commandArgs(trailingOnly=TRUE)
@@ -2713,7 +2710,8 @@ server <- function(input, output, session){
   observeEvent(input$Export,{
     validate(need(file.exists(input$mainPath),"No valid directory."))
     
-    setwd(input$mainPath)
+    IPMAINPATH <<- input$mainPath
+    setwd(IPMAINPATH)
     dir.create("settings")
     dir.create("export")
     # setwd("export")
@@ -3065,7 +3063,7 @@ server <- function(input, output, session){
         
       })
     })
-    showNotification("Finished Export. You can find the tables in the export folder in your experiment location.",duration = NULL,type = "message")
+    showNotification(paste("Finished Export. You can find the tables in the export folder in your experiment location.\n",IPMAINPATH,sep = ""),duration = NULL,type = "message")
   })
   
   
