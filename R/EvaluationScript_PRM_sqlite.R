@@ -3414,7 +3414,8 @@ BrowseFun <- function(id,session){
   }
 }
 ## PEAKS Finding MODUL
-RTcandidatesFun <- function(ana,FDRcutoff,RTranges = NULL,supersmooth=F,supersmooth_bw=0.2){
+RTcandidatesFun <- function(ana,FDRcutoff,RTranges = NULL,supersmooth=F,supersmooth_bw=0.2,Requantify_Priority="DL_Scores"){
+  save(ana,FDRcutoff,RTranges,supersmooth,supersmooth_bw,file="RTcandidatesFun_temp.rda")
   if(length(RTranges)!=0){
     if(length(RTrange)!=2){
       RTranges <- range(sapply(ana,function(x){range(x$RT_Used)}),na.rm = T)
@@ -3442,7 +3443,7 @@ RTcandidatesFun <- function(ana,FDRcutoff,RTranges = NULL,supersmooth=F,supersmo
         # plot(x$RT_Used,x$DL_Scores,type="l")
         # points(supsmu(x$RT_Used,x$DL_Scores,bass = 1),col = 2,type="l")
       }
-      x[x$FDR<=FDRcutoff,.(rawfile,RT_Used,DL_Scores),]
+      x[x$FDR<=FDRcutoff,.(rawfile,RT_Used,DL_Scores,IntensitySum),]
       
     })
     
@@ -3473,7 +3474,18 @@ RTcandidatesFun <- function(ana,FDRcutoff,RTranges = NULL,supersmooth=F,supersmo
   
   # Extracting RT with best Score
   if(length(tempfunCOMBIALL)>0){
+    if(F){
+      #option: get 90% confidence from rounded RTs
+      tempfunCOMBIALL2 <- tempfunCOMBIALL[,.(DL_Scores=quantile(DL_Scores,0.9),IntensitySum=quantile(IntensitySum,0.9)),.(RT_Used=round(RT_Used,1),rawfile)]
+    }
     CANDIDATE_RT <- tempfunCOMBIALL[,.SD[DL_Scores==max(DL_Scores,na.rm = T)],rawfile]
+    
+    if(Requantify_Priority=="DL_Scores"){
+      CANDIDATE_RT <- tempfunCOMBIALL[,.SD[DL_Scores==max(DL_Scores,na.rm = T)],rawfile]
+    }
+    if(Requantify_Priority=="Intensity"){
+      CANDIDATE_RT <- tempfunCOMBIALL[,.SD[IntensitySum==max(IntensitySum,na.rm = T)],rawfile]
+    }
     
   }else{
     CANDIDATE_RT <-data.table(rawfile = as.vector(RF),RT_Used=NA,DL_Scores = NA)
@@ -5019,6 +5031,430 @@ DetectPeak <- function(rt_pep,Peakwidth,transitions,RT,
   return(list(quantile= qua,all  = win,XIC = XIC,intensity = INT,Peaks=Peaks))
 }
 
+DetectPeak_v2_old <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=0.5,BootstrapRounds=20,minpeakheight=0.5,...){
+  save(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance,BootstrapRounds,minpeakheight,file="DetectPeak_V2_TempNameSpace.rda")
+  RT.DetectPeak <- RT
+  
+  #   # estimatedPeakDistance <- 0.5
+  # BootstrapRounds <- 20
+  # minpeakheight <- 0.5
+  
+  transitions.DetectPeak <- data.frame(transitions)
+  transitions.DetectPeak <- apply(transitions.DetectPeak,2,function(x){scale(x)+abs(min(scale(x)))})
+  plot(transitions.DetectPeak[,1])
+  
+  # option: correlation cutoff
+  # apply(cor(transitions.DetectPeak_smooth),2,median) > 0.5
+  # apply(cor(transitions.DetectPeak),2,median) > 0.5
+  transitions.DetectPeak_smooth <- apply(transitions.DetectPeak,2,savgol,fl=151,forder=4,dorder=0)
+  transitions.DetectPeak_smooth_strong <- apply(transitions.DetectPeak,2,savgol,fl=501,forder=4,dorder=0)
+  # transitions.DetectPeak_smooth_strong[transitions.DetectPeak_smooth_strong<0] <- 0
+  # transitions.DetectPeak_smooth[transitions.DetectPeak_smooth<0] <- 0
+  ZeroRemove <- colSums(transitions.DetectPeak_smooth_strong,na.rm = T)
+  transitions.DetectPeak_smooth_strong <- transitions.DetectPeak_smooth_strong[,ZeroRemove>0]
+  
+  iti<-0
+  trendPeak_average <- NULL
+  trend <- apply(transitions.DetectPeak_smooth_strong[,apply(cor(transitions.DetectPeak_smooth_strong),2,median) > 0.5],1,median,na.rm = T)
+  
+  trend2 <- c(rep(min(trend,na.rm = T)*0.9,9),min(trend,na.rm = T)*0.95,trend,min(trend,na.rm = T)*0.95,rep(min(trend,na.rm = T)*0.9,9))
+  thresholdVal <- 0.1
+  while(length(trendPeak_average)==0){
+    iti <- iti+1
+    
+    # trend <- trend+abs(min(trend,na.rm = T))+0.001
+    
+    # plot(trend2)
+    # trendPeak_average <- findpeaks(,nups = 1,ndowns = 1,minpeakheight = 0.5,minpeakdistance = 3,threshold = 0.1)
+    
+    trendPeak_average <- findpeaks(trend2,nups = 1,ndowns = 1,minpeakheight = minpeakheight,minpeakdistance = 2,threshold = thresholdVal)
+    thresholdVal <- thresholdVal*0.75
+    minpeakheight <- minpeakheight*0.9
+    if(length(trendPeak_average)>0){
+      trendPeak_average[,2:4]  <- trendPeak_average[,2:4]  - 10
+      trendPeak_average[trendPeak_average<=0] <- 1
+      trendPeak_average[trendPeak_average>length(RT.DetectPeak)] <- length(RT.DetectPeak)
+      
+    }
+    if(iti>50){
+      trendPeak <- matrix(NA,1,4)
+      break()
+    }
+  }
+  # stop()
+  if(length(trendPeak_average)==0){
+    BootStrapPeak <- lapply(1:BootstrapRounds,function(x){
+      cat("\r",x)
+      # transitions.DetectPeak_smooth <- apply(transitions.DetectPeak,2,savgol,fl=151,forder=4,dorder=0)
+      # transitions.DetectPeak_smooth[transitions.DetectPeak_smooth<0] <- 0
+      Sampled <- transitions.DetectPeak_smooth[,sample(1:dim(transitions.DetectPeak_smooth)[2],replace = T)]
+      trend <- apply(Sampled[,apply(cor(Sampled),2,median) > 0.5],1,median,na.rm = T)
+      thresholdVal <- 0.1
+      trendPeak <- findpeaks(trend,nups = 1,ndowns = 1,minpeakheight = minpeakheight,minpeakdistance = 2,threshold = thresholdVal)
+      iti<-0
+      while(length(trendPeak)==0){
+        iti <- iti+1
+        trend2 <- c(rep(0,10),trend,rep(0,10))
+        thresholdVal <- thresholdVal*0.75
+        trendPeak <- findpeaks(trend2,nups = 0,ndowns = 1,minpeakheight = minpeakheight,minpeakdistance = 2,threshold = thresholdVal)
+        if(length(trendPeak)>0){
+          trendPeak[,2:4] <- trendPeak[,2:4]-10
+          trendPeak[trendPeak<=0] <- 1
+        }
+        if(iti>50){
+          trendPeak <- matrix(NA,1,4)
+          break()
+        }
+      }
+      
+      
+      colnames(trendPeak) <- c("Height","Peak","Start","End")
+      data.table(trendPeak)
+    })
+    BootStrapPeak2 <- lapply(1:BootstrapRounds,function(x){
+      cat("\r",x)
+      # transitions.DetectPeak_smooth <- apply(transitions.DetectPeak,2,savgol,fl=151,forder=4,dorder=0)
+      # transitions.DetectPeak_smooth[transitions.DetectPeak_smooth<0] <- 0
+      Sampled <- transitions.DetectPeak_smooth_strong[,sample(1:dim(transitions.DetectPeak_smooth_strong)[2],replace = T)]
+      trend <- apply(Sampled[,apply(cor(Sampled),2,median) > 0.5],1,median,na.rm = T)
+      thresholdVal <- 0.1
+      trendPeak <- findpeaks(trend,nups = 1,ndowns = 1,minpeakheight = minpeakheight,minpeakdistance = 2,threshold = thresholdVal)
+      iti<-0
+      while(length(trendPeak)==0){
+        iti <- iti+1
+        trend2 <- c(rep(0,10),trend,rep(0,10))
+        thresholdVal <- thresholdVal*0.75
+        trendPeak <- findpeaks(trend2,nups = 0,ndowns = 1,minpeakheight = minpeakheight,minpeakdistance = 2,threshold = thresholdVal)
+        if(length(trendPeak)>0){
+          trendPeak[,2:4] <- trendPeak[,2:4]-10
+          trendPeak[trendPeak<=0] <- 1
+        }
+        if(iti>50){
+          trendPeak <- matrix(NA,1,4)
+          break()
+        }
+      }
+      
+      
+      colnames(trendPeak) <- c("Height","Peak","Start","End")
+      data.table(trendPeak)
+    })
+    
+    # apply(BootStrapPeak,2,range)
+    print("hu")
+    BootStrapPeak <- rbindlist(BootStrapPeak)
+    BootStrapPeak2 <- rbindlist(BootStrapPeak2)
+    BootStrapPeak <- rbind(BootStrapPeak,BootStrapPeak2)
+    BootStrapPeak <- BootStrapPeak[!is.na(BootStrapPeak$Height)]
+  }else{
+    BootStrapPeak <- data.table(trendPeak_average)
+    colnames(BootStrapPeak) <-     c("Height","Peak","Start","End")
+    
+  }
+  # BootStrapPeak$Peak <- RT.DetectPeak[BootStrapPeak$Peak]
+  # BootStrapPeak$Start <- RT.DetectPeak[BootStrapPeak$Start]
+  # BootStrapPeak$End <- RT.DetectPeak[BoCotStrapPeak$End]
+  # dim_return <- NULL
+  BootStrapPeak$PeakDiff <-abs(RT.DetectPeak[BootStrapPeak$Peak]-rt_pep)
+  print("hu")
+  qcut <- 0
+  while(min(BootStrapPeak$PeakDiff)>estimatedPeakDistance){
+    qcut <- qcut+0.1
+    cat("\r",qcut)
+    estimatedPeakDistance <- quantile(BootStrapPeak$PeakDiff,qcut)
+  }
+  BootStrapPeak <- BootStrapPeak[BootStrapPeak$PeakDiff <= estimatedPeakDistance,]
+  
+  print("hu")
+  
+  # hist(BootStrapPeak)
+  
+  # PEAKSFUN <- BootStrapPeak[PeakDiff<estimatedPeakDistance,{
+  #   te <<- .SD
+  #   te$Height <- NULL
+  #   te_quantiles <- lapply(1:dim(te)[2],function(x){
+  #     list(c(quantile(as.data.frame(te)[,x],probs=c(0.1,0.5,0.9),na.rm = T),sd(as.data.frame(te)[,x],na.rm = T)))
+  #   })
+  #   te_quantiles_c <- rbindlist(te_quantiles)
+  #   te_quantiles_c <-t(te_quantiles_c)
+  #   colnames(te_quantiles_c) <- sapply(colnames(te),function(x){paste(x,c(0.1,0.5,0.9,"SD"),sep = "_")})
+  #   data.table(te_quantiles_c)
+  # },round(Peak,1)]
+  BootStrapPeakResults <- apply(BootStrapPeak,2,quantile,probs=c(0.1,0.5,0.9))
+  BootStrapPeakResults_vec <- as.vector(BootStrapPeakResults)
+  names(BootStrapPeakResults_vec) <- sapply(colnames(BootStrapPeakResults),function(x){paste(x,rownames(BootStrapPeakResults),sep = "_")})
+  BootStrapPeakResults_vec <- as.data.frame(t(as.data.frame(BootStrapPeakResults_vec)))
+  
+  # quantify
+  wise <- c(NA,NA)
+  try(wise <- round(BootStrapPeakResults_vec$`Start_10%`:BootStrapPeakResults_vec$`End_90%`))
+  
+  
+  pl <- F
+  if(pl){
+    gs <- lapply(list((transitions.DetectPeak_smooth),transitions.DetectPeak),function(input){
+      transitions.DetectPeak_temp <<- data.frame(input)
+      transitions.DetectPeak_temp$RT <- RT.DetectPeak
+      transitions.DetectPeak_temp_long <- melt(as.data.table(transitions.DetectPeak_temp),id.vars="RT")
+      library(ggplot2)
+      library(pracma)
+      g <- ggplot(transitions.DetectPeak_temp_long,aes(x=RT,y=value,group=variable,color=variable))+geom_line()
+      
+      g
+    })
+  }
+  
+  # medianfun <- apply(BootStrapPeak[BootStrapPeak$PeakDiff<estimatedPeakDistance,],2,median)
+  # TempMeanSmooth <- savgol(TempMean,11,forder= 4,dorder=0)
+  # Smoothing:
+  # library(gridExtra)
+  # grid.arrange(gs[[1]]+xlim(c(5,8.5))+geom_vline(xintercept = c((BootStrapPeak$Start),BootStrapPeak$Peak,(BootStrapPeak$End))))
+  # BootStrapPeak <<- BootStrapPeak
+  
+  
+  traPeak <- data.frame(transitions[wise,])
+  quaPeak <- RT.DetectPeak[wise]
+  
+  XIC <- sapply(1:dim(traPeak)[2],function(x){trapz(quaPeak,traPeak[,x])})
+  names(XIC) <- colnames(traPeak)
+  INT <- apply(traPeak,2,max,na.rm = T)
+  
+  colnames(BootStrapPeak) <- c("V2","s","start","end","PeakDiff")
+  Peaks <- list(Peaks,PeaksSummary=NA,PeakDensity=NA)
+  
+  
+  
+  gs[[1]]+geom_vline(xintercept = RT.DetectPeak[range(wise)])+geom_vline(xintercept = RT.DetectPeak[trendPeak_average[1,3:4]],color = "blue")
+  
+  # cuti <- wise
+  
+  return(list(quantile= RT.DetectPeak[range(wise)],all  = NA,XIC = XIC,intensity = INT,Peaks=Peaks))
+  
+  
+}
+
+DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=0.5,RelaxationRounds=20,BootstrapRounds=20,minpeakheight=0.1,pl=F,smoothingFactor=51,presetQuantiles=NULL,ApplyMaximumWidth=T,...){
+  RT.DetectPeak <- RT
+  # load("/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20220209_MVB_Rawfiles_library_bio_benchmarking/DetectPeak_V2_TempNameSpace.rda")
+  save(rt_pep,Peakwidth,transitions,smoothingFactor,RT.DetectPeak,estimatedPeakDistance,BootstrapRounds,minpeakheight,presetQuantiles,ApplyMaximumWidth,file="DetectPeak_V2_TempNameSpace.rda")
+  # load("DetectPeak_V2_TempNameSpace.rda")
+  # scaling data
+  {
+    trendPeak_average <- NULL
+    
+    # scaling data
+    # stop()
+    thresholdVal <- 0.1
+    if(dim(transitions)[1]>5){
+      if(length(presetQuantiles)!=2){
+        
+        
+        # transitions <- Neighbour_Mean_imputation(transitions)
+        class(transitions) <- "data.frame"
+        transitions.DetectPeak <- as.data.frame(transitions)
+        ZeroRemove <- colSums(transitions,na.rm = T)
+        
+        transitions.DetectPeak <- apply(transitions.DetectPeak,2,function(x){scale(x)})
+        # attempt to filter based on summed absolutec differences across each trace, idea is, that fluctating data is causing higher values
+        diffs <- apply(transitions.DetectPeak,2,function(x){sum(abs(diff(x[!is.na(x)])))})
+        diffs <- diffs/dim(transitions.DetectPeak)[1]
+        CorInit <- F
+        corThresh <- 0.5
+        while(sum(CorInit)<3){
+          CorInit1 <- sapply(1:dim(transitions)[2],function(x){cor(transitions[,1],transitions[,x])})>corThresh
+          CorInit2 <- sapply(1:dim(transitions)[2],function(x){cor(transitions[,2],transitions[,x])})>corThresh
+          CorInit3 <- sapply(1:dim(transitions)[2],function(x){cor(transitions[,3],transitions[,x])})>corThresh
+          
+          CorInit1[is.na(CorInit1)]  <- FALSE
+          CorInit2[is.na(CorInit2)]  <- FALSE
+          CorInit3[is.na(CorInit3)]  <- FALSE
+          CorFinal <- CorInit1|CorInit2|CorInit3
+          # CorInit <- apply(cor(transitions[,ZeroRemove>0]),2,median,na.rm = T)>corThresh
+          corThresh <- corThresh-0.1
+          if(corThresh<0.2){
+            break()
+          }
+        }
+        # CorFinal <- rep(F,rep(length(ZeroRemove)))
+        # CorFinal[ZeroRemove>0] <- CorInit
+        # if(any(transitions.DetectPeak)<0){
+        #   transitions.DetectPeak <- transitions.DetectPeak+abs(min(transitions.DetectPeak))
+        # }
+        # smoothing strong or weak
+        if(0){
+          smoothingFactor <- 51
+          minpeakheight <- 0.1
+          estimatedPeakDistance <- 0.5
+        }
+        repeatit <- T
+        it <- 0
+        thresholdVal <- 0.1
+        diffThreshold <- 1# switched off, set to 0.1 to take action. It can cause problems
+        # stop()
+        # transitions.DetectPeak_smooth <- apply(transitions.DetectPeak,2,savgol,fl=smoothingFactor,forder=4,dorder=0)
+        # median(transitions.DetectPeak_smooth,na.rm=T)
+        # sd(transitions.DetectPeak_smooth,na.rm = T)
+        # sd(transitions.DetectPeak,na.rm = T)
+        while(repeatit){
+          it <- it+1
+          cat("\rRound",it)
+          
+          # plot(transitions.DetectPeak_smooth,transitions.DetectPeak)
+          transitions.DetectPeak_smooth <- apply(transitions.DetectPeak,2,savgol,fl=smoothingFactor,forder=4,dorder=0)
+          transitions.DetectPeak_smooth <- apply(transitions.DetectPeak_smooth,2,scale)
+          transitions.DetectPeak_smooth[is.infinite(transitions.DetectPeak_smooth)] <- NA
+          # transitions.DetectPeak_smooth[transitions.DetectPeak_smooth<min(transitions.DetectPeak,na.rm = T)] <- min(transitions.DetectPeak,na.rm = T)
+          
+          transitions.DetectPeak_smooth <- as.data.frame(transitions.DetectPeak_smooth)
+          transitions.DetectPeak_smooth <- transitions.DetectPeak_smooth[,ZeroRemove>0&CorFinal]
+          if(is.vector(transitions.DetectPeak_smooth)){
+            transitions.DetectPeak_smooth <- (data.frame(nclue=transitions.DetectPeak_smooth))
+          }
+          
+          iti<-0
+          #Correlation as a potential quality metric
+          # corres <- NA
+          # try(    corres <- apply(cor(transitions.DetectPeak_smooth),2,median))
+          
+          RTdiff <- 0
+          trendPeak_average <- NULL
+          try({
+            # Smoothing data
+            # if(!is.matrix(transitions.DetectPeak_smooth)){
+            #   save(rt_pep,Peakwidth,transitions,RT.DetectPeak,estimatedPeakDistance,BootstrapRounds,minpeakheight,presetQuantiles,ApplyMaximumWidth,file="DetectPeak_V2_TempNameSpace_Error.rda")
+            #   
+            #   stop()
+            # }
+            trend <- apply(transitions.DetectPeak_smooth,1,function(x){M <- NA;try({M <- median(x[x!=0],na.rm = T)});M})
+            #add Trendbefore and After the data
+            trend2 <- c(rep(min(trend,na.rm = T)-diff(range(trend))*0.1,9),min(trend,na.rm = T)-diff(range(trend))*0.05,trend,min(trend,na.rm = T)-diff(range(trend))*0.05,rep(min(trend,na.rm = T)-diff(range(trend))*0.1,9))
+            #finding peaks
+            trendPeak_average <- findpeaks(trend2,nups = 1,ndowns = 1,minpeakheight = minpeakheight,minpeakdistance = 2,threshold = thresholdVal)
+            trendPeak_average[,2:4] <- trendPeak_average[,2:4]-10
+            trendPeak_average[trendPeak_average<=0] <- 1
+            trendPeak_average[trendPeak_average>length(RT.DetectPeak)] <- length(RT.DetectPeak)
+            if(length(trendPeak_average)>0){
+              correctedPosition <- trendPeak_average[,2]-10
+              correctedPosition[correctedPosition<0] <- 1
+              correctedPosition[correctedPosition>length(RT.DetectPeak)] <- length(RT.DetectPeak)
+              RTdiff <- abs(rt_pep-RT.DetectPeak[correctedPosition])
+            }
+            # Determining distance from best scoring RT position
+            
+            
+          })
+          
+          
+          if(length(trendPeak_average)==0|all(RTdiff>estimatedPeakDistance)){
+            # less restrictions if nothing passed the threshholds, simultanteous approach could become problematic, but seems to be fine at the moment
+            minpeakheight <- minpeakheight-0.01
+            if(minpeakheight<0){
+              minpeakheight <- 0
+            }
+            thresholdVal <- thresholdVal*0.9
+            smoothingFactor <- smoothingFactor+10
+            diffThreshold <- diffThreshold+0.02
+          }else{
+            #stopping loop
+            repeatit <- F
+            # Preparing Data
+            
+            trendPeak_average <- data.frame(trendPeak_average)
+            colnames(trendPeak_average) <- c("Height","Peak","Start","End")
+            trendPeak_average$Diff <- abs(RTdiff)
+            # Filtering for minimal distance
+            trendPeak_averagetemp <- trendPeak_average[trendPeak_average$Diff <=estimatedPeakDistance,]
+            if(dim(trendPeak_averagetemp)[1]==0){
+              trendPeak_averagetemp <- trendPeak_average[trendPeak_average$Diff ==min(trendPeak_average$Diff),]
+              # trendPeak_averagetemp <- data.frame(Height=NA,Peak=NA,"Start"=NA,"End"=NA,Diff=NA)
+            }
+            # Replacing artificialy zscore height with real summed intensities
+            trendPeak_averagetemp$Height <- rowSums(transitions[trendPeak_averagetemp$Peak,])
+            # Final Filtering on summed intensities
+            trendPeak_average <- trendPeak_averagetemp[trendPeak_averagetemp$Height==max(trendPeak_averagetemp$Height),]#[1,]#apply(trendPeak_averagetemp,2,median)
+            
+          }
+          if(it==RelaxationRounds){
+            break()
+          }
+          # plot(RT.DetectPeak,trend)
+          # abline(v=rt_pep)
+          # abline(v=RT.DetectPeak[trendPeak_average[,2]],col = 3)
+          # stop()
+        }
+        repeatit
+        # stop()
+        
+        # plot(RT.DetectPeak,trend)
+        # abline(v=RT.DetectPeak[trendPeak_average[,2]])
+        if(length(trendPeak_average)==0){
+          if(length(rt_pep)>0){
+            trendPeak_average <- data.frame(Height=NA,Peak=rt_pep,"Start"=rt_pep-estimatedPeakDistance/2,"End"=rt_pep+estimatedPeakDistance/2,Diff=0)
+          }else{
+            print("Warning:")
+            print(paste("rt_pep is empty, returning NULL"))
+            trendPeak_average <- NULL
+          }
+        }
+        wise <- unlist(trendPeak_average[1,3:4])
+      }else{
+        
+        wise <- which(RT.DetectPeak>=presetQuantiles[1]&RT.DetectPeak<=presetQuantiles[2])
+        
+      }
+    }else{
+      wise <- c(NA,NA)
+      trendPeak_average <- NULL
+      
+    }
+    
+    
+    
+    
+    traPeak <- data.frame(transitions[wise,])
+    quaPeak <- RT.DetectPeak[wise]
+    
+    XIC <- sapply(1:dim(traPeak)[2],function(x){trapz(quaPeak,traPeak[,x])})
+    names(XIC) <- colnames(traPeak)
+    INT <- apply(traPeak,2,max,na.rm = T)
+    
+    Peaks <- list(trendPeak_average,PeaksSummary=NA,PeakDensity=NA)
+    
+    pl <- F
+    if(pl){
+      gs <- lapply(list((transitions.DetectPeak_smooth),transitions.DetectPeak),function(input){
+        transitions.DetectPeak_temp <<- data.frame(input)
+        transitions.DetectPeak_temp$RT <- RT.DetectPeak
+        transitions.DetectPeak_temp_long <- melt(as.data.table(transitions.DetectPeak_temp),id.vars="RT")
+        library(ggplot2)
+        library(pracma)
+        g <- ggplot(transitions.DetectPeak_temp_long,aes(x=RT,y=value,group=variable,color=variable))+geom_line()+theme(legend.position = "none")
+        
+        g
+      })
+      plot(gs[[2]]+geom_vline(xintercept = RT.DetectPeak[range(wise)]))
+    }
+  }
+  # 
+  # 
+  RTrange <- RT.DetectPeak[range(wise)]
+  if(all(!is.na(RTrange))){
+    if(diff(RTrange)<estimatedPeakDistance/3&ApplyMaximumWidth){
+      addit <- estimatedPeakDistance/3-abs(diff(RTrange))/2
+      RTrange <- RTrange+c(-addit,addit)
+    }  
+  }
+  
+  return(list(quantile= RTrange,all  = NA,XIC = XIC,intensity = INT,Peaks=Peaks, QualityMeasure=list(minpeakheight=minpeakheight,
+                                                                                                     thresholdVal=thresholdVal,
+                                                                                                     smoothingFactor=smoothingFactor
+                                                                                                     # R_M=median(corres,na.rm = T),
+                                                                                                     # R_sigma=sd(corres,na.rm = T),
+                                                                                                     # R_n = length(corres[!is.na(corres)])
+                                                                                                     )))
+  
+}
+
 
 ############## Export ###################
 dbtaNameExport <- function(ana,dbpath,pw){
@@ -5040,6 +5476,323 @@ CondenseNames <- function(uniRaw){
 }
 # Wrapper function for automated Peak Detection During export
 # Wrapper function for automated Peak Detection During export
+# DetectPeakWrapper <- function(
+#   ana,#TransitionLists
+#   CANDIDATE_RT,# RT candidates (based on best FDR after CutOff)
+#   dbp,#Database path
+#   RetentionTimeWindow=5,
+#   QType= "Intensities",
+#   RT_BASED_onbestScore=T,
+#   Reanalysis = F,
+#   ApplyMaximumWidth=T,
+#   MinPeakWidth=0.1,
+#   MaxPeakWidth=0.5,
+#   supersmooth_I_set=F,
+#   supersmooth_bw_set=0.1,
+#   Requantify_Priority="DL_Scores",
+#   session = NULL
+# ){
+#   print("PeakWrapper")
+#   save(dbp,ana,CANDIDATE_RT,RetentionTimeWindow,QType,RT_BASED_onbestScore,Reanalysis,ApplyMaximumWidth,MinPeakWidth,MaxPeakWidth,
+#        supersmooth_I_set,supersmooth_bw_set,Requantify_Priority,file="temp.DetectPeakWrapper.rda")
+#   # First DPLIST and Writing it to Database for Int and XIC
+#   if(length(session)>0){
+#     le <-length(ana)*length(unique(ana[[1]]$rawfile))
+#     
+#     progress <- Progress$new(session,min=0, max=le)
+#     on.exit(progress$close())
+#     progress$set(message = 'Compiling scans',
+#                    detail = "almost done",value = 0)
+#     progressit <<- 0
+#     
+#   }
+#   DPlist <- lapply(1:length(ana),function(it){ it<-it
+#   # it
+#   x <- ana[[it]]
+#   dbtaNameVec <- dbtaName(ana,dbp)[it]
+#   # print(dbtaNameVec)
+#   if(all(unlist(dblistT(db =dbp)) != dbtaNameVec)|Reanalysis){
+#     x <- data.table(x)
+#     temp <- x[rawfile==rawfile[1]]
+#     # Going through rawfile by rawfile
+#     DP <- x[,{
+#       if(length(session)>0){
+#         
+#         progressit <<- progressit+1
+#         progress$set(value=progressit)
+#       }
+#       # cat("\r",.GRP,.BY$rawfile)
+#       temp <- .SD
+#       grp <- .BY
+#       temp2 <- temp
+#       Candidate <- CANDIDATE_RT[CANDIDATE_RT$rawfile == grp$rawfile]
+#       RTset <- median(Candidate$RT_Used,na.rm=T)
+#       RTsetWindow <- RetentionTimeWindow/2
+# 
+#       temp <- temp[RT_Used>(RTset-RTsetWindow)&RT_Used<(RTset+RTsetWindow),.SD,]
+#       if(dim(temp)[1]==0){
+#         temp <- temp2
+#         cleandata <- 1
+#         #stop("PROBLEM WITH PeakFUN")
+#       }else{
+#         cleandata <- 0
+#       }
+#       
+#       transidf <- temp[,.SD,.SDcols=1:(which(names(temp) =="charge")-1)]
+#       transidf <- as.data.frame(transidf)
+#       transidf[transidf==-1]<- 0
+#       # print("DetectPeak Start")
+#       rm("PeakDetected")
+#       try({PeakDetected <- DetectPeak_v2(rt_pep = Candidate$RT_Used,
+#                                       Peakwidth = RetentionTimeWindow,
+#                                       transitions = transidf,
+#                                       RT = temp$RT_Used,
+#                                       scores=temp$DL_Scores,
+#                                       FDR=temp$FDR,
+#                                       RelaxationRounds=20,
+#                                       MinPeakWidth = MinPeakWidth,
+#                                       BootstrapRounds = 20,
+#                                       MaxPeakWidth = MaxPeakWidth,supersmooth_I_set = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set,ApplyMaximumWidth = T
+#       )})
+#       if(!exists("PeakDetected")){
+#         return(NULL)
+#       }
+#       #$quantile
+#       # print(PeakDetected)
+#       # print("DetectPeak Finished")
+#       
+#       # Compiling Stuff:
+#       infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
+#       infoquantile <- infoquantileParser(infoquantile)
+#       infoquantile <-rbind(infoquantile,infoquantile)
+#       infoquantile <- apply(infoquantile,2,as.double)
+#       
+#       PeakDetected$all <- NULL     
+#       QuantitationType <- c("XIC","Intensities")
+#       Q <- PeakDetected$quantile
+#       if(length(Q) == 0){
+#         Q = as.double(c(NA,NA))
+#       }
+#       
+#       IntensityStuff <- rbind(PeakDetected$XIC,PeakDetected$intensity)
+#       IntensityStuff <- data.frame(IntensityStuff)
+#       IntensityStuff$Q1 <- Q[1]
+#       IntensityStuff$Q2 <- Q[2]
+#       IntensityStuff$Q1align <- Q[1]
+#       IntensityStuff$Q2align <- Q[2]
+#       IntensityStuff$Peaks <- as.double(NA)
+#       IntensityStuff$QuantitationType <- QuantitationType
+#       OutTable <- cbind(IntensityStuff,infoquantile)
+#       
+#       if(dim(temp)[1]==0){
+#         temp <- temp2
+#         cleandata <- 1
+#         #stop("PROBLEM WITH PeakFUN")
+#       }else{
+#         cleandata <- 0
+#       }
+#       
+#       OutTable
+#       
+#     },rawfile]
+#     DP[is.na(Q1)&Q2==1,c("Q1","Q2","Q1align","Q2align"):=NA]
+#     setcolorder(DP,c(names(DP)[-1],"rawfile"))
+#     
+#     # DP_PeaksFun<- DP
+#     dbsuccess <- dbwrite(x = DP,name = dbtaNameVec,db =dbp,overwrite = T)
+#     # print("end Writing Peakfun Peaksfun")
+#     
+#   }else{
+#     # print("Found Peak File")
+#     DP <- dbread(x = dbtaNameVec,db =dbp)
+#   }
+#   # DP <- DP[DP$QuantitationType == QType,]# double check, if this is necessary
+#   DP
+#   })
+#   names(DPlist) <- names(ana)
+#   
+#   # fu <- (sapply(DPlist,function(x){x <<- x;(cbind(x$Q1,x$Q2,x$rawfile))}))
+#   DPlistBackup <- DPlist
+#   
+#   
+#   
+#   if(RT_BASED_onbestScore&length(DPlist)>1&Requantify_Priority!="none"){
+#     print("Reassign")
+#     # Extracting Windows
+#     DPlistDT <<- lapply(1:length(DPlist),function(x){
+#       tempu <- DPlist[[x]];
+#       tempu$Precursor<-names(DPlist)[x];
+#       tempu <- data.table(tempu,stringsAsFactors=F)
+#       tempu[is.na(Q1)&Q2==1,c("Q1","Q2","Q1align","Q2align"):=NA]
+#       tempu
+#     })
+#     DPDT <<- rbindlist(DPlistDT)
+#     # Deciding on precursors per rawfile, which need to be requantified
+#     Reassign <- DPDT[,{
+#       temp <- .SD
+#       temp$FDR[is.na(temp$FDR)] <- 10
+#       
+#       if(Requantify_Priority=="DL_Scores"){
+#         sel <- temp$DL_Scores==max(temp$DL_Scores,na.rm = T)
+#       }
+#       if(Requantify_Priority=="FDR"){
+#         sel <- FDR==max(FDR,na.rm = T)
+#       }
+#       if(Requantify_Priority=="Intensity"){
+#         MaxFun <- as.numeric(apply(tempSelect <- temp[QuantitationType=="Intensities",],1,function(x){max(as.numeric(x)[1:(which(names(temp)=="Q1")-1)],na.rm = T)}))
+#         sel <- Precursor==tempSelect$Precursor[MaxFun==max(MaxFun)]
+#         
+#       }
+#       if(Requantify_Priority=="Light"){
+#         
+#         mz <- as.numeric(gsub("mz","",sapply(strsplit(temp$Precursor,"_"),"[[",1)))
+#         sel <- mz==min(mz)
+#       }
+#       if(Requantify_Priority=="Heavy"){
+#         mz <- as.numeric(gsub("mz","",sapply(strsplit(temp$Precursor,"_"),"[[",1)))
+#         sel <- mz==max(mz)
+#       }
+#       Quantiles <- temp[sel,.(Q1,Q2)]
+#       
+#       Quantiles <- unique(Quantiles)
+#       
+#       if(all(is.na(Quantiles))){
+#         # print("NULL")
+#         print(paste("NULL for", .BY$rawfile))
+#         Quantiles <- NULL
+#       }else{
+#         # print("FUN")
+#         NeedsAnUpdate <- temp[sel,.(Precursor)]
+#         Quantiles <- Quantiles
+#         Precursor <- NeedsAnUpdate$Precursor
+#         Quantiles <- cbind(Quantiles,Precursor)
+#         Quantiles <- unique(Quantiles)
+#       }
+#       # print(length(Quantiles))
+#       # print(Quantiles)
+#       as.list(Quantiles)
+#       
+#     },.(rawfile)]
+#     
+#     Reassign <- unique(Reassign)
+#     Reassign <- Reassign[!is.na(Reassign$Precursor),]
+#     if(dim(Reassign)[1]>0){
+#      
+#       sapply(1:dim(Reassign)[1],function(its){
+#         tempReassing <- Reassign[its,]
+#         gr <- tempReassing$Precursor
+#         
+#         itlist <- which(names(ana)!=gr)
+#         if(length(itlist)>0){
+#           for(it in itlist){
+#             tempana <- ana[[it]]
+#             dbtaNameVec <- dbtaName(ana,dbp)[it]
+#             DP <- dbread(dbtaNameVec,dbp)
+#             DP <- data.table(DP,stringsAsFactors=F)
+#             tempana <- data.table(tempana,stringsAsFactors=F)
+#             Corrected <- tempana[!is.na(match(rawfile,tempReassing$rawfile)),{
+#               # cat("\r",.GRP,.BY$rawfile)
+#               tempana_rf <- .SD
+#               grp <- .BY
+#               if(dim(tempana_rf)[1]==0){
+#                 OutTable <- NULL
+#               }else{
+#                 # stop()
+#                 # Extract transitions
+#                 transidf <- tempana_rf[,.SD,.SDcols=1:(which(names(tempana) =="charge")-1)]
+#                 transidf <- as.data.frame(transidf)
+#                 trans <<- SplitTransitionInfo(tempana_rf)
+#                 trans$Transitions[trans$Transitions==-1]<-0
+#                 # Specify RT range
+#                 rangeinit <<- tempReassing[rawfile==grp$rawfile,.(Q1,Q2)]
+#                 if(dim(rangeinit)[1]>0){
+#                   
+#                   RANGE <- range(rangeinit)
+#                   # print("DetectPeak Start")
+#                   PeakDetected <- list(quantile=c(NA,NA),XIC=NA,intensity=NA)
+#                   try({PeakDetected <- DetectPeak_v2(rt_pep = mean(RANGE),
+#                                                   Peakwidth = diff(RANGE),
+#                                                   transitions = trans$Transitions,
+#                                                   RT = trans$Info$RT_Used,
+#                                                   presetQuantiles = RANGE,
+#                                                   FDR=NULL,
+#                                                   scores=trans$Info$DL_Scores,
+#                                                   MinPeakWidth = MinPeakWidth,
+#                                                   MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set
+#                   )})#$quantile
+#                   temp <- trans$Info
+#                   infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
+#                   infoquantile <- infoquantileParser(infoquantile)
+#                   infoquantile <-rbind(infoquantile,infoquantile)
+#                   infoquantile <- apply(infoquantile,2,as.double)
+#                   
+#                   PeakDetected$all <- NULL     
+#                   QuantitationType <- c("XIC","Intensities")
+#                   Q <- PeakDetected$quantile
+#                   if(length(Q) == 0){
+#                     Q = as.double(c(NA,NA))
+#                   }
+#                   
+#                   IntensityStuff <- rbind(PeakDetected$XIC,PeakDetected$intensity)
+#                   IntensityStuff <- data.frame(IntensityStuff)
+#                   IntensityStuff$Q1 <- Q[1]
+#                   IntensityStuff$Q2 <- Q[2]
+#                   IntensityStuff$Q1align <- Q[1]
+#                   IntensityStuff$Q2align <- Q[2]
+#                   IntensityStuff$Peaks <- as.double(NA)
+#                   IntensityStuff$QuantitationType <- QuantitationType
+#                   OutTable <- cbind(IntensityStuff,infoquantile)
+#                 }else{
+#                   OutTable <- NULL
+#                 }
+#                 
+#                 # if(cleandata){
+#                 #   OutTable$Q1 <- as.double(NA)
+#                 #   OutTable$Q2 <- as.double(NA)
+#                 #   OutTable$Q1align <- as.double(NA)
+#                 #   OutTable$Q2align <- as.double(NA)
+#                 #   
+#                 #   OutTable[,1:which(colnames(OutTable)=="Q1")]<- as.double(NA)
+#                 #   
+#                 # }else{
+#                 #   OutTable <-   as.list(OutTable)
+#                 #   
+#                 # }
+#                 # OutTable <<- OutTable
+#               }
+#               
+#               OutTable
+#             },rawfile]
+#             DPnochange <- DP[is.na(match(rawfile,Corrected$rawfile)),]
+#             if(dim(Corrected)[1]>0){
+#               DPnew <- rbind(DPnochange,Corrected)
+#               
+#               cat("\rrewriting",dbtaNameVec)
+#               
+#               if(dim(DPnew)[1]==dim(DP)[1]){
+#                 dbwrite(DPnew,dbtaNameVec,dbp,overwrite = T)
+#               }
+#             }
+#            
+#           }
+#           # DPnew
+#         }else{
+#           NULL
+#         }
+#         NULL
+#       })
+#       
+#       dbtaNameVec <- dbtaName(ana,dbp)
+#       DPlist <- lapply(dbtaNameVec,function(x){DP <- dbread(x,dbp);   #   DP <- DP[DP$QuantitationType == QType,];
+#       DP
+#       
+#       
+#       })
+#     }
+#   }
+#   
+#   DPlist
+# }
 DetectPeakWrapper <- function(
   ana,#TransitionLists
   CANDIDATE_RT,# RT candidates (based on best FDR after CutOff)
@@ -5054,11 +5807,22 @@ DetectPeakWrapper <- function(
   supersmooth_I_set=F,
   supersmooth_bw_set=0.1,
   Requantify_Priority="DL_Scores",
-  session = NULL
-  
+  session = NULL,
+  parallel_db=NULL
 ){
+  if(length(parallel_db)>0){
+    dbp_write <- as.character(parallel_db)
+    if(!file.exists(dbp_write)){
+      library(RSQLite)
+      db <- dbConnect(SQLite(),dbp_write)
+      dbDisconnect(db)
+    }
+  }else{
+    dbp_write <- dbp
+  }
   print("PeakWrapper")
-  
+  save(dbp,ana,CANDIDATE_RT,RetentionTimeWindow,QType,RT_BASED_onbestScore,Reanalysis,ApplyMaximumWidth,MinPeakWidth,MaxPeakWidth,
+       supersmooth_I_set,supersmooth_bw_set,Requantify_Priority,file="temp.DetectPeakWrapper.rda")
   # First DPLIST and Writing it to Database for Int and XIC
   if(length(session)>0){
     le <-length(ana)*length(unique(ana[[1]]$rawfile))
@@ -5066,12 +5830,13 @@ DetectPeakWrapper <- function(
     progress <- Progress$new(session,min=0, max=le)
     on.exit(progress$close())
     progress$set(message = 'Compiling scans',
-                   detail = "almost done",value = 0)
+                 detail = "almost done",value = 0)
     progressit <<- 0
     
   }
   DPlist <- lapply(1:length(ana),function(it){ it<-it
-  it
+  # it
+  it <<- it
   x <- ana[[it]]
   dbtaNameVec <- dbtaName(ana,dbp)[it]
   # print(dbtaNameVec)
@@ -5092,7 +5857,7 @@ DetectPeakWrapper <- function(
       Candidate <- CANDIDATE_RT[CANDIDATE_RT$rawfile == grp$rawfile]
       RTset <- median(Candidate$RT_Used,na.rm=T)
       RTsetWindow <- RetentionTimeWindow/2
-
+      
       temp <- temp[RT_Used>(RTset-RTsetWindow)&RT_Used<(RTset+RTsetWindow),.SD,]
       if(dim(temp)[1]==0){
         temp <- temp2
@@ -5107,53 +5872,57 @@ DetectPeakWrapper <- function(
       transidf[transidf==-1]<- 0
       # print("DetectPeak Start")
       rm("PeakDetected")
-      try({PeakDetected <<- DetectPeak(rt_pep = Candidate$RT_Used,
-                                      Peakwidth = RetentionTimeWindow,
-                                      transitions = transidf,
-                                      RT = temp$RT_Used,
-                                      scores=temp$DL_Scores,
-                                      FDR=temp$FDR,
-                                      MinPeakWidth = MinPeakWidth,
-                                      MaxPeakWidth = MaxPeakWidth,supersmooth_I_set = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set,ApplyMaximumWidth = T
+      try({PeakDetected <- DetectPeak_v2(rt_pep = Candidate$RT_Used,
+                                         Peakwidth = RetentionTimeWindow,
+                                         transitions = transidf,
+                                         RT = temp$RT_Used,
+                                         scores=temp$DL_Scores,
+                                         FDR=temp$FDR,
+                                         RelaxationRounds=20,
+                                         MinPeakWidth = MinPeakWidth,
+                                         BootstrapRounds = 20,
+                                         MaxPeakWidth = MaxPeakWidth,supersmooth_I_set = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set,ApplyMaximumWidth = T
       )})
       if(!exists("PeakDetected")){
-        return(NULL)
+        OutTable <- NULL
+      }else{
+        infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
+        infoquantile <- infoquantileParser(infoquantile)
+        infoquantile <-rbind(infoquantile,infoquantile)
+        infoquantile <- apply(infoquantile,2,as.double)
+        
+        PeakDetected$all <- NULL     
+        QuantitationType <- c("XIC","Intensities")
+        Q <- PeakDetected$quantile
+        if(length(Q) == 0){
+          Q = as.double(c(NA,NA))
+        }
+        
+        IntensityStuff <- rbind(PeakDetected$XIC,PeakDetected$intensity)
+        IntensityStuff <- data.frame(IntensityStuff)
+        IntensityStuff$Q1 <- Q[1]
+        IntensityStuff$Q2 <- Q[2]
+        IntensityStuff$Q1align <- Q[1]
+        IntensityStuff$Q2align <- Q[2]
+        IntensityStuff$Peaks <- as.double(NA)
+        IntensityStuff$QuantitationType <- QuantitationType
+        OutTable <- cbind(IntensityStuff,infoquantile)
+        
+        if(dim(temp)[1]==0){
+          temp <- temp2
+          cleandata <- 1
+          #stop("PROBLEM WITH PeakFUN")
+        }else{
+          cleandata <- 0
+        }
+        
+        
       }
       #$quantile
       # print(PeakDetected)
       # print("DetectPeak Finished")
       
       # Compiling Stuff:
-      infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
-      infoquantile <- infoquantileParser(infoquantile)
-      infoquantile <-rbind(infoquantile,infoquantile)
-      infoquantile <- apply(infoquantile,2,as.double)
-      
-      PeakDetected$all <- NULL     
-      QuantitationType <- c("XIC","Intensities")
-      Q <- PeakDetected$quantile
-      if(length(Q) == 0){
-        Q = as.double(c(NA,NA))
-      }
-      
-      IntensityStuff <- rbind(PeakDetected$XIC,PeakDetected$intensity)
-      IntensityStuff <- data.frame(IntensityStuff)
-      IntensityStuff$Q1 <- Q[1]
-      IntensityStuff$Q2 <- Q[2]
-      IntensityStuff$Q1align <- Q[1]
-      IntensityStuff$Q2align <- Q[2]
-      IntensityStuff$Peaks <- as.double(NA)
-      IntensityStuff$QuantitationType <- QuantitationType
-      OutTable <- cbind(IntensityStuff,infoquantile)
-      
-      if(dim(temp)[1]==0){
-        temp <- temp2
-        cleandata <- 1
-        #stop("PROBLEM WITH PeakFUN")
-      }else{
-        cleandata <- 0
-      }
-      
       OutTable
       
     },rawfile]
@@ -5161,7 +5930,7 @@ DetectPeakWrapper <- function(
     setcolorder(DP,c(names(DP)[-1],"rawfile"))
     
     # DP_PeaksFun<- DP
-    dbsuccess <- dbwrite(x = DP,name = dbtaNameVec,db =dbp,overwrite = T)
+    dbsuccess <- dbwrite(x = DP,name = dbtaNameVec,db =dbp_write,overwrite = T)
     # print("end Writing Peakfun Peaksfun")
     
   }else{
@@ -5190,7 +5959,6 @@ DetectPeakWrapper <- function(
     })
     DPDT <<- rbindlist(DPlistDT)
     # Deciding on precursors per rawfile, which need to be requantified
-    DPDT[rawfile=="Rowlf_20210528_MVB_HS_Surequant_1000fmJPTpeps_inPhosmix_317peps_Light.raw"]
     Reassign <- DPDT[,{
       temp <- .SD
       temp$FDR[is.na(temp$FDR)] <- 10
@@ -5240,7 +6008,7 @@ DetectPeakWrapper <- function(
     Reassign <- unique(Reassign)
     Reassign <- Reassign[!is.na(Reassign$Precursor),]
     if(dim(Reassign)[1]>0){
-     
+      
       sapply(1:dim(Reassign)[1],function(its){
         tempReassing <- Reassign[its,]
         gr <- tempReassing$Precursor
@@ -5273,15 +6041,15 @@ DetectPeakWrapper <- function(
                   RANGE <- range(rangeinit)
                   # print("DetectPeak Start")
                   PeakDetected <- list(quantile=c(NA,NA),XIC=NA,intensity=NA)
-                  try({PeakDetected <- DetectPeak(rt_pep = mean(RANGE),
-                                                  Peakwidth = diff(RANGE),
-                                                  transitions = trans$Transitions,
-                                                  RT = trans$Info$RT_Used,
-                                                  presetQuantiles = RANGE,
-                                                  FDR=NULL,
-                                                  scores=trans$Info$DL_Scores,
-                                                  MinPeakWidth = MinPeakWidth,
-                                                  MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set
+                  try({PeakDetected <- DetectPeak_v2(rt_pep = mean(RANGE),
+                                                     Peakwidth = diff(RANGE),
+                                                     transitions = trans$Transitions,
+                                                     RT = trans$Info$RT_Used,
+                                                     presetQuantiles = RANGE,
+                                                     FDR=NULL,
+                                                     scores=trans$Info$DL_Scores,
+                                                     MinPeakWidth = MinPeakWidth,
+                                                     MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set
                   )})#$quantile
                   temp <- trans$Info
                   infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
@@ -5333,10 +6101,10 @@ DetectPeakWrapper <- function(
               cat("\rrewriting",dbtaNameVec)
               
               if(dim(DPnew)[1]==dim(DP)[1]){
-                dbwrite(DPnew,dbtaNameVec,dbp,overwrite = T)
+                dbwrite(DPnew,dbtaNameVec,dbp_write,overwrite = T)
               }
             }
-           
+            
           }
           # DPnew
         }else{
@@ -5356,7 +6124,6 @@ DetectPeakWrapper <- function(
   
   DPlist
 }
-
 
 ## Export Ratio Calculate Function
 erl.smooth <- function(x,y,smooth = F){
@@ -5389,7 +6156,7 @@ FWHM.finder <- function(ep.data, mu.index){
   return(list(HWHM1 = HWHM1,HWHM2 = HWHM2,FWHM = FWHM,FWHM2 = FWHM2))
 }
 # last change: 20200213
-PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
+PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T,progressObj=NULL,outpath="./export"){
   CollectFun <<- c() # backupcollection of peaks
   if(all(is.na(peaks$mz))){
     peaks$mz <- as.numeric(gsub("mz","",peaks$Precursor))
@@ -5398,10 +6165,22 @@ PeaksProcessingLM <- function(peaks,Remove_y1 =T,Plot=T){
   graphics.off()
   RA <<- c()
   
-  pdf("./export/PeakView.pdf",width = 7)
+
+  pdf(paste(outpath,"/",Sys.getpid(),"PeakView.pdf",sep = ""),width = 7)
+  GRPmax  <-dim(peaks[,1,.(Sequence=Sequence,rawfile=rawfile,charge = charge,Gene=Gene)])[1]
   
   RatioCalc <-peaks[,{
     # Plot <- T
+    if(length(progressObj)>0){
+      progressObj$set(message = "Working on ratio estimation.",
+                             detail = paste(length(ID),"Processes running."),value = .GRP/GRPmax)
+    }else{
+      li <- list.files(outpath,pattern=paste("RatioProcessing",Sys.getpid(),sep = "_"),full.names = T)
+      if(length(li)>0){
+        sapply(li,unlink)
+      }
+      write("",paste(outpath,paste("RatioProcessing",Sys.getpid(),.GRP,GRPmax,sep = "_"),sep = "/"))
+    }
     
     cat("\r PeakView of",.GRP)
     

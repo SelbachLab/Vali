@@ -5,18 +5,19 @@ library(data.table)
 library(parallel)
 library(gtools)
 library(h2o)# Machine Learning module, for Scoring
-library(rawDiag)# RawFile Reader https://github.com/fgcz/rawDiag
+# library(rawDiag)# RawFile Reader https://github.com/fgcz/rawDiag
 library(Peptides)# for MS1, currently not implemented
 library(enviPat)# for isotope pattern distribution calculation used in MS1 assessment
 library(shinyWidgets)
 require(rawDiag)
 require(compiler)
 library(tcltk)
+library(rawrr)
 
 
-# options(warn=-1)
+options(warn=-1)
 
-options(warn=1)
+# options(warn=1)
 # library(gridExtra)
 #humpe
 args1 = commandArgs(trailingOnly=TRUE)
@@ -2172,7 +2173,7 @@ server <- function(input, output, session){
   # Preselecting Candidates:
   RTcandidates <- reactive({
     print("RT RTcandidates")
-    RTcandidatesFun(AnalyzedTransitions(),input$FDRpep)
+    RTcandidatesFun(AnalyzedTransitions(),input$FDRpep,Requantify_Priority=input$Requantify_Priority)
   })
   # MAIN Peak detection/quantification Modul 
   PeaksFun <- reactive({
@@ -2242,7 +2243,7 @@ server <- function(input, output, session){
   ## Automated Ares PEAKS Finding MODUL ########
   RTcandidatesAreaSearch <- reactive({
     print("RT candidates AreaSearch")
-    RTcandidatesFun(AnalyzedTransitions(),input$FDRpep,ranges$x)
+    RTcandidatesFun(AnalyzedTransitions(),input$FDRpep,ranges$x,Requantify_Priority=input$Requantify_Priority)
   })
   # Set Search in this Ares
   SetSearchArea <- eventReactive(input$SetSearchArea,{
@@ -2352,7 +2353,7 @@ server <- function(input, output, session){
           tempa <- anaFun[[i]]
           SplitList <- SplitTransitionInfo(tempa)
           X_limit <- c(temp$Q1[1],temp$Q2[1])
-          PeakDetected <- DetectPeak(pe <- min(X_limit,na.rm = T)+diff(X_limit)/2,diff(X_limit)/2,SplitList$Transitions,
+          PeakDetected <- DetectPeak_v2(pe <- min(X_limit,na.rm = T)+diff(X_limit)/2,diff(X_limit)/2,SplitList$Transitions,
                                      SplitList$Info$RT_Used,
                                      presetQuantiles = X_limit,scores = SplitList$Info$DL_Scores)#$quantile
           INFO <- SplitTransitionInfo(temp,"Q1")
@@ -2453,7 +2454,7 @@ server <- function(input, output, session){
             transManual <- transManual
             print("\rDETECT PEAK MANUAL Start")
             X_limit <- X_limit
-            PeakDetected <- DetectPeak(pe <- min(X_limit,na.rm = T)+diff(X_limit)/2,diff(X_limit)/2,transManual,info$RT_Used,presetQuantiles = X_limit)#$quantile
+            PeakDetected <- DetectPeak_v2(pe <- min(X_limit,na.rm = T)+diff(X_limit)/2,diff(X_limit)/2,transManual,info$RT_Used,presetQuantiles = X_limit)#$quantile
             # print(PeakDetected)
             print("\rDETECT PEAK MANUAL Finish")
             
@@ -2740,6 +2741,58 @@ server <- function(input, output, session){
     supersmooth_bw_set_vec <<- input$supersmooth_bw_set
     ApplyMaximumWidth_vec <<-   input$ApplyMaximumWidth
     Requantify_Priority <<- input$Requantify_Priority
+    save(anaexport,dbp,FDRpep,MinPeakWidth_vec,supersmooth_bw_set_vec,ApplyMaximumWidth_vec,Requantify_Priority,Requantify_Priority,SystemPath,
+         minthresh,RTwin,MaxPeakWidth_vec,MinPeakWidth_vec,file="Export_Vali.rda")
+    
+    RscriptPath <- paste(SystemPath,"R/ParallelExport.R",sep = "/")
+    rscriptCmd <- paste("rscript",RscriptPath)
+    system(rscriptCmd,wait=F)
+    if(length(session) != 0){
+      progress_Export <- Progress$new(session,min=0, 1)
+      on.exit(progress_Export$close())
+      progress_Export$set(message = 'Starting parallel export.',
+                            detail = "",value = 0)
+    }
+    unlink("./ParallelExport/Finished_Parallel_Export")
+    while(!file.exists("./ParallelExport/Finished_Parallel_Export")){
+      li <- list.files("./ParallelExport/",pattern="ExportProcess")
+      ra <- list.files("./ParallelExport/",pattern = "RatioProcess")
+      exportList <- sapply(strsplit(li,"#"),function(x){return(x)})
+      exportList <- t(exportList)
+      if(dim(exportList)[2]>=2&length(ra)==0){
+        try({
+          ID <- unique(exportList[,2])
+          ExportResult  <- sapply(ID,function(x){
+            Efu <<- exportList[exportList[,2]==x,]
+            abs(diff(as.numeric(Efu[,3])))
+          })
+          cat("\r",Current <- round(sum(ExportResult)/length(anaexport),2))
+          if(length(session)>0){
+            progress_Export$set(message = "Working on parallel export.",
+                                   detail = paste(length(ID),"Processes running."),value = Current)
+          }
+          if(length(list.files("ParallelExport/",pattern="Combining_DB_PeaksTables|CombiningTransitionLists|Combining_DB_PeaksTables"))>0){
+            progress_Export$set(message = "Working on parallel export.",
+                                detail = paste(length(ID),"Processes running."),value = Current)
+          }
+         
+        })
+      }
+      if(length(ra)>0){
+        exportList <- sapply(strsplit(ra,"_"),function(x){return(x)})
+        exportList <- t(exportList)
+        Current <- as.numeric(exportList[,3])/as.numeric(exportList[,4])
+        
+        if(length(session)>0){
+          progress_Export$set(message = "Working on parallel ratios.",
+                              detail = paste(length(ra),"Processes running."),value = sum(Current)/length(ra))
+        }
+      }
+      Sys.sleep(1)
+      
+      
+    }
+    if(0){
     for(i in 1:length(anaexport)){
       fifu <- anaexport[i]
       cat("\rworking on ",fifu)
@@ -2829,7 +2882,9 @@ server <- function(input, output, session){
             tempa$RT_Used <- tempa$RT_min
             tempa$FDR <- tempa$FDR_RF_all
             FDRcut <- FDRpep
-            CANDIDATE_RT <- RTcandidatesFun(list(tempa),FDRcut)
+            tempa <<- tempa
+            FDRcut <<- FDRcut
+            CANDIDATE_RT <- RTcandidatesFun(list(tempa),FDRcut,Requantify_Priority=Requantify_Priority)
             LI <- list(tempa)
             names(LI) <- fifu
             # DPlist_I <- DetectPeakWrapper(ana = ana,CANDIDATE_RT = CANDIDATE_RT,dbp = dbp,
@@ -2857,8 +2912,6 @@ server <- function(input, output, session){
                                             
             )
 
-            # DPlist_I <- DetectPeakWrapper(LI,CANDIDATE_RT,dbp,RetentionTimeWindow,"Intensities",Reanalysis = T)
-            # DPlist_XIC <- DetectPeakWrapper(LI,CANDIDATE_RT,dbp,RetentionTimeWindow,"XIC",Reanalysis = T)
             # DP <- rbind(DPlist_I[[1]],DPlist_XIC[[1]])
             DP <- data.table(DPlist_XIC[[1]],stringsAsFactors = F)
             
@@ -3023,6 +3076,7 @@ server <- function(input, output, session){
       }
       
     }    
+    }
     print("Export: longtab")
     try({
       # longtab <- fread(fipath,sep = "\t",stringsAsFactors = F)
@@ -3040,28 +3094,31 @@ server <- function(input, output, session){
       # 
       # try(write.table(LoTab,file = "./export/ProteinList.txt",quote = F,row.names = F,col.names = F,append = T,sep = "\t"))
       # # Calculate Ratios:
-      try({
-        peakspath <- "./export/Peaks.txt"
-        if(file.exists(peakspath)){
-          peaks <- fread(peakspath,sep ="\t",stringsAsFactors = F)
-          peaks[,Precursor := gsub("_.*$","",precursor_ID)]
-          peaks[,PrecursorInfo := substr(precursor_ID,gregexpr("_",precursor_ID)[[1]][1],nchar(precursor_ID))]
-          peaks[,Sequence:= strsplit(precursor_ID,"_")[[1]][3],precursor_ID]
-          peaks[,Label:= strsplit(Sequence,"#")[[1]][2],precursor_ID]
-          peaks[,Sequence:= strsplit(Sequence,"#")[[1]][1],precursor_ID]
-          
-          peaks[,Charge:= strsplit(precursor_ID,"_")[[1]][[2]],precursor_ID]
-          peaks[,Gene:= strsplit(precursor_ID,"_")[[1]][[5]],precursor_ID]
-          
-          if(any(is.na(peaks$mz))){
-            peaks$mz <- as.numeric(gsub("^mz","",peaks$Precursor))
-          }
-          peaks <- peaks[!is.na(value),]
-          Ratios <- PeaksProcessingLM(peaks)
-          fwrite(Ratios,"./export/Ratios.txt",sep = "\t")
-        }
-        
-      })
+      # try({
+      #   progress_Export$set(message = "Working on ratio estimation.",
+      #                          detail = paste(length(ID),"Processes running."),value = 0)
+      #   
+      #   peakspath <- "./export/Peaks.txt"
+      #   if(file.exists(peakspath)){
+      #     peaks <- fread(peakspath,sep ="\t",stringsAsFactors = F)
+      #     peaks[,Precursor := gsub("_.*$","",precursor_ID)]
+      #     peaks[,PrecursorInfo := substr(precursor_ID,gregexpr("_",precursor_ID)[[1]][1],nchar(precursor_ID))]
+      #     peaks[,Sequence:= strsplit(precursor_ID,"_")[[1]][3],precursor_ID]
+      #     peaks[,Label:= strsplit(Sequence,"#")[[1]][2],precursor_ID]
+      #     peaks[,Sequence:= strsplit(Sequence,"#")[[1]][1],precursor_ID]
+      #     
+      #     peaks[,Charge:= strsplit(precursor_ID,"_")[[1]][[2]],precursor_ID]
+      #     peaks[,Gene:= strsplit(precursor_ID,"_")[[1]][[5]],precursor_ID]
+      #     
+      #     if(any(is.na(peaks$mz))){
+      #       peaks$mz <- as.numeric(gsub("^mz","",peaks$Precursor))
+      #     }
+      #     peaks <- peaks[!is.na(value),]
+      #     Ratios <- PeaksProcessingLM(peaks,progressObj = progress_Export)
+      #     fwrite(Ratios,"./export/Ratios.txt",sep = "\t")
+      #   }
+      #   
+      # })
     })
     showNotification(paste("Finished Export. You can find the tables in the export folder in your experiment location.\n",IPMAINPATH,sep = ""),duration = NULL,type = "message")
   })
