@@ -2210,6 +2210,8 @@ server <- function(input, output, session){
     # Reanalysis_Check <- T
     print("Reanalysis_Check:")
     # print(Reanalysis_Check)
+    # showNotification(paste("humpe",Reanalysis_Check))
+    
     DPW  <- try({
       dbp <<- dbp
       qType <<- qType
@@ -2741,7 +2743,8 @@ server <- function(input, output, session){
     supersmooth_bw_set_vec <<- input$supersmooth_bw_set
     ApplyMaximumWidth_vec <<-   input$ApplyMaximumWidth
     Requantify_Priority <<- input$Requantify_Priority
-    save(anaexport,dbp,FDRpep,MinPeakWidth_vec,supersmooth_bw_set_vec,ApplyMaximumWidth_vec,Requantify_Priority,Requantify_Priority,SystemPath,
+    threads <- input$Threads
+    save(anaexport,threads,dbp,FDRpep,MinPeakWidth_vec,supersmooth_bw_set_vec,ApplyMaximumWidth_vec,Requantify_Priority,Requantify_Priority,SystemPath,
          minthresh,RTwin,MaxPeakWidth_vec,MinPeakWidth_vec,file="Export_Vali.rda")
     
     RscriptPath <- paste(SystemPath,"R/ParallelExport.R",sep = "/")

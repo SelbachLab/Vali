@@ -1,6 +1,6 @@
 library(data.table)
-DeletePrevious <- F
-ExportPeaks <- F
+DeletePrevious <- T
+ExportPeaks <- T
 ExportRatios <- T
 
 if(!file.exists("Export_Vali.rda")){
@@ -12,15 +12,13 @@ ls <- load("Export_Vali.rda")
 (source(paste(SystemPath,"/R/EvaluationScript_PRM_sqlite.R",sep = "")))
 
 library(parallel)
-cl <- makeCluster(7,outfile="export.txt")
+
 # stopCluster(cl)
 # wd <- getwd()
 
 if(DeletePrevious){
   try({
-    dir.create("ParallelExport",showWarnings = F)
-    unlink("export.txt",force=T)
-    cl <- makeCluster(7,outfile="export.txt")
+
     wd <- getwd()
     ls <- c(ls)
     ls <- unique(ls)
@@ -32,14 +30,19 @@ if(DeletePrevious){
     if(length(li)>0){
       sapply(li,unlink)
     }
-    parallel::clusterExport(cl,ls)
   })
   
 }
+dir.create("ParallelExport",showWarnings = F)
+unlink("export.txt",force=T)
+clu <- makeCluster(threads,outfile="export.txt")
+parallel::clusterExport(clu,ls)
 
 if(ExportPeaks){
-  try({parSapply(cl,1:length(anaexport),function(i){
-    options(warn=1)
+ try({parSapply(clu,1:length(anaexport),function(i){
+    # try({sapply(7:length(anaexport),function(i){
+      icurrent <<- i
+    # options(warn=1)
     # save.image(paste("./ParallelExport/ExportParallel_",Sys.getpid(),".rda",sep = ""))
     sessionId <- paste("./ParallelExport/CurrentExportProcess",Sys.getpid(),i,sep="#")
     sessionId_grep <- paste("CurrentExportProcess",Sys.getpid(),sep="#")
@@ -86,10 +89,10 @@ if(ExportPeaks){
     }
     
     # setwd("../")
-    if(i==1){
-      unlink("./export/Peaks.txt")
-      
-    }
+    # if(i==1){
+    #   unlink("./export/Peaks.txt")
+    #   
+    # }
     
     PeaksName <- dbtaNameExport(dbp,ana = fifu)
     PeaksNameRatin <- paste("RATING_",PeaksName,sep = "")
@@ -119,7 +122,10 @@ if(ExportPeaks){
     }
     # Loop is to account several Peak tables caused by different checked PeakWidths in the database, need to manually be selected afterwards
     # print("Export: PeakCount")
-    try(rm("tempa"))
+    if(file.exists("tempa")){
+      try(rm("tempa"),silent = T)
+      
+    }
     # dbp <- dbpath()
     
     for(PeakCount in 1:LoopCount){
@@ -155,7 +161,7 @@ if(ExportPeaks){
           tempList <- tempList
           DPlist_XIC <- DetectPeakWrapper(ana = tempList,CANDIDATE_RT = CANDIDATE_RT,dbp = dbp,
                                           RetentionTimeWindow = RTwin,QType = "Intensities",
-                                          Reanalysis = T,
+                                          Reanalysis = F,
                                           RT_BASED_onbestScore = T,
                                           MinPeakWidth=MinPeakWidth_vec,
                                           MaxPeakWidth=MaxPeakWidth_vec,
@@ -317,8 +323,8 @@ if(ExportPeaks){
 # Ratio Estimation
 li <- list.files("./ParallelExport",pattern=".Peaks.txt$",full.names = T)
 if(length(li)>0&ExportRatios){
-  clusterExport(cl,c("PeaksProcessingLM","Fun.Fit.lm"))
-  hu <-  parSapply(cl,li,function(peakspath){
+  clusterExport(clu,c("PeaksProcessingLM","Fun.Fit.lm"))
+  hu <-  parSapply(clu,li,function(peakspath){
     library(data.table)
     if(file.exists(peakspath)){
       peaks <- fread(peakspath,sep ="\t",stringsAsFactors = F)
@@ -342,7 +348,7 @@ if(length(li)>0&ExportRatios){
   })
 }
 
-stopCluster(cl)
+stopCluster(clu)
 # system("open export.txt")
 # consolidating
 # combining Peaks
@@ -378,13 +384,14 @@ hum <- lapply(sql,function(xhu){
   Ta <- dbListTables(gbtemp)
   Ta <- grep("^PEAKS",Ta,value = T)
   if(length(Ta)>0){
-    sapply(Ta,function(fil){
+    tabi <- sapply(Ta,function(fil){
       fil <<- fil
       try({
         dbr <- dbReadTable(gbtemp,fil)
         dbWriteTable(db,fil,dbr,overwrite=T)
       })
     })
+    print(table(tabi))
     
   }
   })
@@ -404,7 +411,7 @@ l2 <- lapply(li,function(x){
 })
 
 write("","./ParallelExport/Finished_Parallel_Export")
-
+dbDisconnect(db)
 
 # 
 # 
