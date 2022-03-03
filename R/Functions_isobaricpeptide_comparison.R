@@ -21,7 +21,9 @@ fun_pairwisecomparison <- function(Spectratable_seq1, Spectratable_seq2,SearchMo
 # syntax Spectratable_seq1 _IADPEHDHTGFLTEY(Phospho (STY))VATR_
 #read in characteristics sequences
   
-if(grepl("Acetyl|Oxidation",Spectratable_seq1)|grepl("Acetyl|Oxidation",Spectratable_seq2)){stop("Alternative modifications detected, stop!")}
+if(grepl("Acetyl|Oxidation",Spectratable_seq1)|grepl("Acetyl|Oxidation",Spectratable_seq2)){
+  return(NULL)
+}
 
 Spectratable_seq1 <- gsub("\\(Phospho \\(STY\\)\\)", 
                           "p", Spectratable_seq1)

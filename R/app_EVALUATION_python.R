@@ -128,12 +128,19 @@ print("Loaded SourceScript")
 # ui ------ 
 
 ui <- fluidPage(
+  
   tags$head(tags$style(
     HTML('#title {
            color: black;
            font-size: 40px;
            font-style: bold;
-          }'))),
+          }',
+         ".shiny-notification {
+              font-size: xx-small;
+
+            }
+           "
+         ))),
   #tags$head(tags$style(".shiny-progress {top: 50% !important;left: 50% !important;margin-top: -100px !important;margin-left: -250px !important; color: blue;font-size: 20px;font-style: italic;}")),
   tags$script(inactivity),   
   
@@ -2230,6 +2237,7 @@ server <- function(input, output, session){
                                   session=session
                                   
       )
+      DPlistCheck <<- DPlist
     })
     
     if(class(DPW)=="try-error"){

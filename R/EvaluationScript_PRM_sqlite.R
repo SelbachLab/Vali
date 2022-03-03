@@ -1328,12 +1328,17 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
 ## Extracts Intensities from a rawfile, input: rawfile, InclusionlistPath
 Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFilePath,dirout = "PRM_Analyzer_Matches",
                                     parallelExecution=T,ppm1=10,ppm2=10,ChargeDetection="^",useDIA=T,session = NULL,
-                                    threads = detectCores(),ScanStringFilterInvert=T,ScanStringFilter=NULL){
+                                    threads = detectCores(),ScanStringFilterInvert=T,ScanStringFilter=NULL,ExpandingSpecificity=T){
   require(data.table)
   require(rawDiag)
   setwd(RawFilePath)
   #finding RawFiles
+  if(ExpandingSpecificity){
+    try(ExpandSpectrumSpecificity(InclusionlistPath))
+  }
   raws <- list.files(pattern = ".raw")
+  
+  
   # Decoys:
   ST <- fread(paste(InclusionlistPath,"SpectraTable.txt",sep = "/"))
   TT <- fread(paste(InclusionlistPath,"TransitionTable.txt",sep = "/"))
@@ -6318,7 +6323,7 @@ DetectPeakWrapper <- function(
     # print("end Writing Peakfun Peaksfun")
     
   }else{
-    # print("Found Peak File")
+    print("Found Peak File")
     DP <- dbread(x = dbtaNameVec,db =dbp)
   }
   # DP <- DP[DP$QuantitationType == QType,]# double check, if this is necessary
@@ -7502,4 +7507,184 @@ MakeFeatureTable <- function(mztable,defaultPeptideLength=NULL,mzname="unknown",
   mztableSelect <- mztableSelect[order(TrainSet$id)]
   mztableSelect
 }
-
+# Expanding Spectrum Specificity: #########
+ExpandSpectrumSpecificity <- function(InclusionlistPath){
+  if(file.exists(paste(InclusionlistPath,"SpectraTableOriginal.txt",sep = "/"))){
+    ST <- fread(paste(InclusionlistPath,"SpectraTableOriginal.txt",sep = "/"))
+    
+  }else{
+    ST <- fread(paste(InclusionlistPath,"SpectraTable.txt",sep = "/"))
+    
+  }
+  if(file.exists(paste(InclusionlistPath,"SpectraTableOriginal.txt",sep = "/"))){
+    TT <- fread(paste(InclusionlistPath,"TransitionTableOriginal.txt",sep = "/"))
+    
+  }else{
+    TT <- fread(paste(InclusionlistPath,"TransitionTable.txt",sep = "/"))
+    
+  }
+  tempfun <- environment()
+  tempfun$TToptimizedTemp  <- TT
+  tempfun$TToptimizedTemp$Specific <- F
+  
+  
+  # Retentionszeit # optional# potential parameter. Only Sequence implemented at the moment
+  PairComparisson <- c("Mass","ExactMass","Sequence")[3]
+  if(PairComparisson=="Mass"){
+    CombiCheck <- combn(ST$SpecID,2)
+    Pair<- apply(CombiCheck,2,function(x,Type="ppm",ppmset=10,WindowTolerance=1.3){
+      x <<- x
+      
+      if(Type=="Da"){
+        WithinTolerance <- abs(diff(ST$mz[x]))<(WindowTolerance/2)
+      }
+      if(Type=="ppm"){
+        xm <- sort(ST$mz[x])
+        wi <- ppmWindow(xm[2],ppm = ppmset)
+        WithinTolerance <- xm[1]>=wi[1]&xm[1]<=wi[2]
+      }
+      WithinTolerance
+    })
+    Isobaric <- CombiCheck[,Pair]
+    
+  }
+  
+  if(PairComparisson=="Sequence"){
+    STFUN <- ST[,.(modSeq=unique(`Modified sequence`),SpecID=unique(SpecID)),Sequence]
+    STFUN$StrippedSequence <- sapply(strsplit(STFUN$Sequence,"#"),"[[",1)
+    Pairs <- STFUN[,{
+      if(length(unique(SpecID))>1){
+        re <- combn(unique(SpecID),2)
+        re2 <<- re
+        re <- as.list(data.frame(t(re)))
+        refu <- apply(re2,2,function(x){
+          x <- x
+          # print(x)
+          x <- x
+          xf <- STFUN[match(x,SpecID)]$modSeq
+          fufi <- fun_pairwisecomparison(xf[1],xf[2])
+          fufi2 <- fun_pairwisecomparison(xf[2],xf[1])
+          if(length(fufi)>0|length(fufi2)>0){
+            da <- as.data.frame(rbind(cbind(fufi,xf[1]),cbind(fufi2,xf[2])))
+            names(da) <- c("fragments","seq")
+          }else{
+            da <- NULL
+          }
+          
+          da
+        })
+        refu2 <<- refu
+        if(length(refu)>0){
+          # print(refu)
+          # print(lengths(refu))
+          # print("rbindlistStart")
+          goodfragments <- rbindlist(refu)
+          # print("rbindlistStopp")
+          
+          goodfragments[,{
+            # print("HU")
+            temp <- .SD
+            grp <- .BY
+            for(x in ST[`Modified sequence`==grp$seq,]$SpecID){
+              sel1 <<- !is.na(match(TT$SpecID,x))
+              sel2 <<- !is.na(match(TT[sel1,]$Matches,temp$fragments))
+              
+              tempfun$TToptimizedTemp$Specific[sel1][sel2] <- T
+            }
+            # print("HU3")
+            NULL
+          },seq]
+          # print("OtherStuff")
+        }
+        
+        
+      }else{
+        re <- NULL
+      }
+      # re <<- re
+      re
+    },Sequence]
+    # print("DONE")
+    # TToptimized[,Specific_Available:=any(Specific),SpecID]
+    TToptimized <- tempfun$TToptimizedTemp
+    TToptimized <- TToptimized[Specific==TRUE,]
+    
+    SToptimized <- ST[!is.na(match(SpecID,TToptimized$SpecID))]
+    SToptimized$`Modified sequence` <- paste(SToptimized$`Modified sequence`,"Specific",sep = "#")
+    # Adjusting SpecIDs
+    specid <- max(ST$SpecID)
+    SpecIDNew <- SToptimized$SpecID+specid
+    TToptimized$SpecID[match(TToptimized$SpecID,ST$SpecID)] <- TToptimized$SpecID[match(TToptimized$SpecID,ST$SpecID)]+specid
+    SToptimized$SpecID <- SpecIDNew
+    TToptimized$Specific <- NULL
+    # Combining Tables
+    STkombi <- rbind(ST,SToptimized)
+    TTkombi <- rbind(TT,TToptimized)
+    #rewriting Library:
+    fwrite(ST,paste(InclusionlistPath,"SpectraTableOriginal.txt",sep = "/"))
+    fwrite(TT,paste(InclusionlistPath,"TransitionTableOriginal.txt",sep = "/"))
+    fwrite(STkombi,paste(InclusionlistPath,"SpectraTable",sep = "/"))
+    fwrite(TTkombi,paste(InclusionlistPath,"TransitionTable",sep = "/"))
+    
+  }
+  
+}
+# pairwise comparison function, spits out unique fragments. 
+fun_pairwisecomparison <- function(Spectratable_seq1, Spectratable_seq2,SearchMod){
+  # Author: Mirjam Van Bentum 2021, modified by Henrik Zauber
+  # syntax Spectratable_seq1 _IADPEHDHTGFLTEY(Phospho (STY))VATR_
+  #read in characteristics sequences
+  
+  if(grepl("Acetyl|Oxidation",Spectratable_seq1)|grepl("Acetyl|Oxidation",Spectratable_seq2)){
+    return(NULL)
+  }
+  
+  Spectratable_seq1 <- gsub("\\(Phospho \\(STY\\)\\)", 
+                            "p", Spectratable_seq1)
+  seq1 <- gsub("_", "", Spectratable_seq1)
+  
+  loc_1 <- regexpr("[STY]p", seq1)[[1]][1]
+  aa1 <- substr(seq1, loc_1, 
+                loc_1 +1)
+  
+  Spectratable_seq2 <- gsub("\\(Phospho \\(STY\\)\\)", 
+                            "p", Spectratable_seq2)
+  seq2 <- gsub("_", "", Spectratable_seq2)
+  
+  loc_2 <- regexpr("[STY]p", seq2)[[1]][1]
+  aa2 <- substr(seq1, loc_2, 
+                loc_2 +1)
+  
+  loc_high <- max(loc_1, loc_2)
+  loc_low <- min(loc_1, loc_2)
+  
+  seq_len <- nchar(gsub("p", "", seq2))
+  
+  #find unique y ions: 
+  ymin <- seq_len - loc_high + 1 
+  ymax <- seq_len - loc_low
+  y_unique <- paste0("y", ymin:ymax)
+  
+  #find unique b ions
+  bmin <- loc_low
+  bmax <- loc_high -1
+  b_unique <- paste0("b", bmin:bmax)
+  
+  fragmentvector <- c(y_unique, b_unique)
+  
+  # add other fragment variants
+  # fragment naming from MQ
+  fragmentvector <- unique(c(fragmentvector,
+                             paste0(fragmentvector, "*"),
+                             paste0(fragmentvector, "-NH3"),
+                             paste0(fragmentvector, "-H2O"),
+                             paste0(fragmentvector, "(2+)"),
+                             gsub("b", "a", fragmentvector)))
+  
+  # pY ion unique identifier? 
+  if((aa1 == "Yp"|aa2 == "Yp") & aa1 != aa2){
+    fragmentvector <- c(fragmentvector, "pY")
+    return(fragmentvector)
+  }
+  
+  return(fragmentvector) }
