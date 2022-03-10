@@ -144,6 +144,9 @@ PrepareTransitionList <- function(mainPath,maxquant,inclusionList,ppm = 10,ppm2 
   wd <- getwd()
   try(RETI <- CompilingDatabase(mainPath,maxquant,session,test = F,SystemPath=SystemPath,threads = threads))
   setwd(wd)
+  if(ExpandingSpecificity){
+    try(ExpandSpectrumSpecificity(InclusionlistPath))
+  }
   # try({rm(db)})
   
   # if(length(session) != 0){
@@ -1333,9 +1336,7 @@ Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFil
   require(rawDiag)
   setwd(RawFilePath)
   #finding RawFiles
-  if(ExpandingSpecificity){
-    try(ExpandSpectrumSpecificity(InclusionlistPath))
-  }
+
   raws <- list.files(pattern = ".raw")
   
   
@@ -2949,7 +2950,9 @@ ScoringWrapper <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh20=F,ses
           
           
           plot(RT_min,SCAall,type = "p",pch = 20,cex = 0.2,main = "",ylab = "",axes = F,main = "SCA over time")
-          mtext(rawfile,cex = 0.8,adj = 0,line = 0.5)
+          if(!hideMain){
+            mtext(rawfile,cex = 0.8,adj = 0,line = 0.5)
+          }
           par(new = T)
           plot(RT_min,RF_Scores,type = "p",col = 2,pch = 20,cex = 1,"RF Score over time")
           
@@ -3580,7 +3583,7 @@ plotTransitions <- function(Index,x,yl = NULL,add = F,TransitionColors = T,col =
   
 }
 plot.analyzed.transition <- function(x,type = "Volcano",yl = NULL,xl = NULL,Ppos = NULL,add = F,FDRCutOff = 0.01,TransitionColors = T,colAll = 2,secPlotType = "Intensity Correlation",p.value = 0.01,RetTime = NULL,DDA = 1:3,PRMonly = T,AddSecondPlot = T,onlySignificant = F,centerPeak = F,colmap=NULL,blankplot = F,FDRType = "FDR",
-                                     maximalnumber = 500,selected_transitions=NULL
+                                     maximalnumber = 500,selected_transitions=NULL,hideMain=F
                                      ,...){
   xhui <- x
   
@@ -3710,7 +3713,9 @@ plot.analyzed.transition <- function(x,type = "Volcano",yl = NULL,xl = NULL,Ppos
     # xl<- c(30,40)
     xbackup <- x
     cat("\rStart plotTransitions")
-    plotTransitions(Index = as.numeric(x$RT_Used),x = transitions,yl = yl,xlim = xl,TransitionColors = TransitionColors,col = colAll,add = add,frame = F,xlab = xla,ylab = yla,Ppos = Ppos,axes = !blankplot)
+    plotTransitions(Index = as.numeric(x$RT_Used),x = transitions,yl = yl,xlim = xl,
+                    TransitionColors = TransitionColors,col = colAll,add = add,
+                    frame = F,xlab = xla,ylab = yla,Ppos = Ppos,axes = !blankplot)
     cat("\rFinished plotTransitions")
     
     x <- xbackup
@@ -4079,8 +4084,15 @@ plot_ms1scan <- function(ms1scan_f,xl =NULL,yl = NULL,add_Second = "MS1_Score",.
   
 }
 
-plot.TransplotList <- function(x,SimultaneousMassShiftvec= T,maximalnumber=500,selected_transitions=NULL){
+plot.TransplotList <- function(x,SimultaneousMassShiftvec= T,maximalnumber=500,selected_transitions=NULL,specificFragments=NULL){
   
+  
+  if(length(specificFragments)>0){
+    com <- x$colmap
+    com[,2] <- "#33333310"
+    com[match(specificFragments,com[,1]),2] <- "#FF0000"
+    x$colmap <- com
+  }
   plot.analyzed.transition(x=x$x,
                            type = x$type,
                            frame = x$frame,
@@ -5268,6 +5280,7 @@ DetectPeak_v2_v1 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistan
         diffs <- diffs/dim(transitions.DetectPeak)[1]
         CorInit <- F
         corThresh <- 0.75
+        presetwarning <- options()$warn
         options(warn=-1)
         while(sum(CorInit)<3){
           try({
@@ -5287,7 +5300,7 @@ DetectPeak_v2_v1 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistan
             break()
           }
         }
-        options(warn=1)
+        options(warn=presetwarning)
         
         # CorFinal <- rep(F,rep(length(ZeroRemove)))
         # CorFinal[ZeroRemove>0] <- CorInit
@@ -5556,7 +5569,7 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
   minpeakheight <- 0.1 # minimal Peak Intensity after scaling
   thresholdVal <- 0.1 # minimal intensity of peaks (after scaling)
   
-    # estimatedPeakDistance <- 1
+  # estimatedPeakDistance <- 1
   
   if(dim(transitions)[1]>=3){
     if(length(presetQuantiles)!=2){
@@ -5572,6 +5585,7 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
       diffs <- apply(transitions.DetectPeak,2,function(x){sum(abs(diff(x[!is.na(x)])))})
       diffs <- diffs/dim(transitions.DetectPeak)[1]
       CorInit <- F
+      presetwarning <- options()$warn
       options(warn=-1)
       while(sum(CorInit)<3){
         try({
@@ -5591,7 +5605,7 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
           break()
         }
       }
-      options(warn=1)
+      options(warn=presetwarning)
       
       # CorFinal <- rep(F,rep(length(ZeroRemove)))
       # CorFinal[ZeroRemove>0] <- CorInit
@@ -5599,13 +5613,13 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
       #   transitions.DetectPeak <- transitions.DetectPeak+abs(min(transitions.DetectPeak))
       # }
       # smoothing strong or weak
-   
+      
       repeatit <- T
       it <- 0
       thresholdVal <- 0.1
       sumvecCutoff <- 0.3
       diffThreshold <- 1# switched off, set to 0.1 to take action. It can cause problems
- 
+      
       trendraw <- apply(transitions.DetectPeak,1,function(x){M <- NA;try({M <- median(x[x!=0],na.rm = T)});M})
       trendPeak_trendPeak_average_raw <- findpeaks(trendraw,nups = 1,ndowns = 1,minpeakheight = 0,minpeakdistance = 1,threshold = 0)
       RTdiff <- abs(rt_pep-RT.DetectPeak[trendPeak_trendPeak_average_raw[,2]])
@@ -5664,7 +5678,7 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
           
           transitions.DetectPeak_smooth <- apply(transitions.DetectPeak_smooth,2,scale)
           transitions.DetectPeak_smooth[is.infinite(transitions.DetectPeak_smooth)] <- NA
-           
+          
           transitions.DetectPeak_smooth <- as.data.frame(transitions.DetectPeak_smooth)
           transitions.DetectPeak_smooth <- transitions.DetectPeak_smooth[,ZeroRemove>0&CorFinal]
           if(is.vector(transitions.DetectPeak_smooth)){
@@ -5681,17 +5695,16 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
           
           ({
             # Smoothing data
-           
+            
             trend <- apply(transitions.DetectPeak_smooth,1,function(x){M <- NA;try({M <- median(x[x!=0],na.rm = T)});M})
             trend[trend<min(trendraw,na.rm = T)] <- min(trendraw,na.rm = T)
             # plot(trendraw,type= "l")
             #add Trendbefore and After the data
             trend2 <- trend #c
-
             trendPeak_average <- findpeaks(trend2,nups = 1,ndowns = 1,minpeakheight = minpeakheight,minpeakdistance = 2,threshold = thresholdVal)
             if(length(trendPeak_average)>0){
-             check2 <- dim(trendPeak_average)[1]>0 
-             check1 <- T
+              check2 <- dim(trendPeak_average)[1]>0 
+              check1 <- T
             }else{
               check2 <- F
               check1 <- F
@@ -5717,6 +5730,7 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
             # Determining distance from best scoring RT position
             
           })
+          sumvec <- sum(abs(trendraw-trend[-c(c(1:10),(length(trend)-9):length(trend))]),na.rm = T)/length(trend)
           
           if((length(trendPeak_average)==0|all(RTdiff>estimatedPeakDistance))&sumvec<sumvecCutoff){
             # less restrictions if nothing passed the threshholds, simultanteous approach could become problematic, but seems to be fine at the moment
@@ -5782,6 +5796,8 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
       wise <- which(RT.DetectPeak>=presetQuantiles[1]&RT.DetectPeak<=presetQuantiles[2])
       
     }
+    trendPeak_average <- NULL
+    
   }else{
     wise <- c(NA,NA)
     trendPeak_average <- NULL
@@ -5796,9 +5812,10 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
   
   XIC <- sapply(1:dim(traPeak)[2],function(x){trapz(quaPeak,traPeak[,x])})
   names(XIC) <- colnames(traPeak)
+  prewarnsettings <- options()$warn
   options(warn=-1)
   INT <- apply(traPeak,2,max,na.rm = T)
-  options(warn=1)
+  options(warn=prewarnsettings)
   Peaks <- list(trendPeak_average,PeaksSummary=NA,PeakDensity=NA)
   
   pl <- F
@@ -5825,7 +5842,7 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
       RTrange <- RTrange+c(-addit,addit)
     }  
   }
-
+  
   return(list(quantile= RTrange,all  = NA,XIC = XIC,intensity = INT,Peaks=Peaks, QualityMeasure=list(minpeakheight=minpeakheight,
                                                                                                      thresholdVal=thresholdVal,
                                                                                                      smoothingFactor=smoothingFactor,
@@ -6270,7 +6287,8 @@ DetectPeakWrapper <- function(
                                          supersmooth_bw_set = supersmooth_bw_set,
                                          ApplyMaximumWidth = T,
                                          Score=temp$DL_Scores,
-                                         Identifier=grp$rawfile
+                                         Identifier=grp$rawfile,
+                                          info=temp
       )})
       if(!exists("PeakDetected")){
         OutTable <- NULL
@@ -6440,7 +6458,8 @@ names(DPlist) <- names(ana)
                                                      MinPeakWidth = MinPeakWidth,
                                                      MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set,
                                                      Score=tempana_rf$DL_Scores,
-                                                     Identifier = grp$rawfile
+                                                     Identifier = grp$rawfile,
+                                                     info=trans$Info
                                                      
                   )})#$quantile
                   temp <- trans$Info
@@ -7509,18 +7528,19 @@ MakeFeatureTable <- function(mztable,defaultPeptideLength=NULL,mzname="unknown",
 }
 # Expanding Spectrum Specificity: #########
 ExpandSpectrumSpecificity <- function(InclusionlistPath){
+  print("Finding specific fragments")
   if(file.exists(paste(InclusionlistPath,"SpectraTableOriginal.txt",sep = "/"))){
-    ST <- fread(paste(InclusionlistPath,"SpectraTableOriginal.txt",sep = "/"))
+    ST <- fread(paste(InclusionlistPath,"SpectraTableOriginal.txt",sep = "/"),sep = "\t")
     
   }else{
-    ST <- fread(paste(InclusionlistPath,"SpectraTable.txt",sep = "/"))
+    ST <- fread(paste(InclusionlistPath,"SpectraTable.txt",sep = "/"),sep = "\t")
     
   }
-  if(file.exists(paste(InclusionlistPath,"SpectraTableOriginal.txt",sep = "/"))){
-    TT <- fread(paste(InclusionlistPath,"TransitionTableOriginal.txt",sep = "/"))
+  if(file.exists(paste(InclusionlistPath,"TransitionTableOriginal.txt",sep = "/"))){
+    TT <- fread(paste(InclusionlistPath,"TransitionTableOriginal.txt",sep = "/"),sep ="\t")
     
   }else{
-    TT <- fread(paste(InclusionlistPath,"TransitionTable.txt",sep = "/"))
+    TT <- fread(paste(InclusionlistPath,"TransitionTable.txt",sep = "/"),sep = "\t")
     
   }
   tempfun <- environment()
@@ -7604,31 +7624,49 @@ ExpandSpectrumSpecificity <- function(InclusionlistPath){
       # re <<- re
       re
     },Sequence]
-    # print("DONE")
-    # TToptimized[,Specific_Available:=any(Specific),SpecID]
+ 
     TToptimized <- tempfun$TToptimizedTemp
     TToptimized <- TToptimized[Specific==TRUE,]
     
-    SToptimized <- ST[!is.na(match(SpecID,TToptimized$SpecID))]
-    SToptimized$`Modified sequence` <- paste(SToptimized$`Modified sequence`,"Specific",sep = "#")
-    # Adjusting SpecIDs
-    specid <- max(ST$SpecID)
-    SpecIDNew <- SToptimized$SpecID+specid
-    TToptimized$SpecID[match(TToptimized$SpecID,ST$SpecID)] <- TToptimized$SpecID[match(TToptimized$SpecID,ST$SpecID)]+specid
-    SToptimized$SpecID <- SpecIDNew
-    TToptimized$Specific <- NULL
-    # Combining Tables
-    STkombi <- rbind(ST,SToptimized)
-    TTkombi <- rbind(TT,TToptimized)
-    #rewriting Library:
-    fwrite(ST,paste(InclusionlistPath,"SpectraTableOriginal.txt",sep = "/"))
-    fwrite(TT,paste(InclusionlistPath,"TransitionTableOriginal.txt",sep = "/"))
-    fwrite(STkombi,paste(InclusionlistPath,"SpectraTable",sep = "/"))
-    fwrite(TTkombi,paste(InclusionlistPath,"TransitionTable",sep = "/"))
-    
+    SToptimized <- ST[!is.na(match(ST$SpecID,TToptimized$SpecID))]
+
   }
   
+  #rewriting Library:
+  # fwrite(ST,paste(InclusionlistPath,"SpectraTableOriginal.txt",sep = "/"),sep = "\t")
+  # fwrite(TT,paste(InclusionlistPath,"TransitionTableOriginal.txt",sep = "/"),sep = "\t")
+  fwrite(SToptimized,paste(InclusionlistPath,"SpectraTable_specific.txt",sep = "/"),sep = "\t")
+  fwrite(TToptimized,paste(InclusionlistPath,"TransitionTable_specific.txt",sep = "/"),sep = "\t")
+  dbp <- paste(InclusionlistPath,"PRM_Analyzer_Matches/PickyAnalyzer.sqlite",sep = "/")
+  if(file.exists(dbp)){
+    try({
+      db <- dbConnect(SQLite(),dbp)
+      dbWriteTable(db,"ST_Specific",SToptimized,overwrite=T)
+      dbWriteTable(db,"TT_Specific",TToptimized,overwrite=T)
+      dbl <- dbListTables(db)
+      dbla <- grep("^mz",dbl,value = T)
+      dblatemp <- rbindlist(lapply(strsplit(dbla,"_"),function(x){(data.frame(mz=gsub("mz","",x[1]),z=x[2],se=x[3],id=x[length(x)]))}))
+      dblatemp$FastaName <- dbla
+      # venn(list(dblatemp$id[grep("Specific",dblatemp$se,invert=T)],unique(TToptimized$SpecID)))
+      
+      dblatemp[,{
+        grp <- .BY
+        cat("\r",grp$id)
+        TTfound <- TToptimized[TToptimized$SpecID==grp$id]
+        if(dim(TTfound)[1]>0){
+          dbWriteTable(db,gsub("^mz","SpecificFragments#",grp$FastaName),TTfound,overwrite=T)
+        }
+        NULL
+      },.(id,FastaName)]
+     
+    })
+
+    
+  }
+  print("Finished finding specific fragments.")
+  
 }
+
 # pairwise comparison function, spits out unique fragments. 
 fun_pairwisecomparison <- function(Spectratable_seq1, Spectratable_seq2,SearchMod){
   # Author: Mirjam Van Bentum 2021, modified by Henrik Zauber

@@ -160,7 +160,7 @@ ui <- fluidPage(
                  #ROW 2------
                  #fluidRow(column(7,uiOutput("precursors")),         
                  fluidRow(column(7,uiOutput("pc1")),
-                          column(3,selectInput("sortType","Sorting",c("FDR","DL_Scores","RF_Scores","Count","SCA","Rating","mz"),selected = "DL_Scores")),
+                          column(3,selectInput("sortType","Sorting",c("FDR","DL_Scores","RF_Scores","Count","SCA","Rating","mz","Sequence"),selected = "DL_Scores")),
                           column(2,prettyRadioButtons("Decreasing","+/-",c("+","-"),selected = "-",inline = T))
                  ),
 
@@ -192,7 +192,9 @@ ui <- fluidPage(
                                       fluidRow(column(12,selectInput("Requantify_Priority","Peak Priority",c("DL_Scores","Intensity","Light","Heavy","none")),style = "margin-top: 10px")),
                                       fluidRow(column(6,actionButton("reset", "Reset Assignments"),style = "margin-top: 10px")),
                                       fluidRow(column(12,switchInput("supersmooth_I_set","Smoother",value = F),style="margin-top:20px")),
-                                      fluidRow(column(12,switchInput("CenterPeak",label = "Center Peak",width="auto")))
+                                      fluidRow(column(12,switchInput("CenterPeak",label = "Center Peak",width="auto"))),
+                                      fluidRow(column(12,switchInput("FocusSpecificFragments",label = "Highlight specific fragments",width="auto")))
+                                      
                                     ),
                                     wellPanel(
                                       fluidRow(conditionalPanel("false",column(12,switchInput("Align",label = "RT Alignment",FALSE)))
@@ -275,10 +277,11 @@ ui <- fluidPage(
                                         column(8,uiOutput("selected_transitions")),
                                         column(1,actionButton("all_Transitions",label = "all"),style = "margin-top: 25px"),
                                         column(1,checkboxInput("nomodifications","no mods",value = FALSE),style = "margin-top: 25px"),
+                                        
+            
                                         column(1,checkboxInput("top5","top10",value = FALSE),style = "margin-top: 25px"),
                                         tags$style(type='text/css', ".selectize-input { font-size: 12px; line-height: 12px;} .selectize-dropdown { font-size: 12px; line-height: 12px; }")
-                                        
-                                        
+                                      
                                       )
                                       
                                     )
@@ -727,6 +730,9 @@ server <- function(input, output, session){
       }
       if(sortType == "mz"){
         ordervec <- as.numeric(gsub("mz","",PrecursorsT$mz[,1]))
+      }
+      if(sortType == "Sequence"){
+        ordervec <- as.character(PrecursorsT$Sequence)
       }
       ordervec <<- ordervec
       PrecursorsT <<- PrecursorsT
@@ -1354,25 +1360,10 @@ server <- function(input, output, session){
   })
   
   output$PlotOutput <- renderPlot({
-    CheckTransPlot <<- TransPlotReactive()
+    CheckTransPlot <- TransPlotReactive()
     CheckTransPlot <- CheckTransPlot[lengths(CheckTransPlot)>0]
     print("TransPlotReactive Result:")
-    print(length(CheckTransPlot))
     validate(need(length(CheckTransPlot)>0,"No Data"))
-    # add validate here 
-    
-    # validate(
-    #   need(is.character(input$sequence),"sequence is not a character")
-    # )
-    # 
-    # validate(
-    #   need(length(precursors())>0, "No sequence selected"), # display custom message in need
-    #   need(length(input$sequence)>0, "No sequence selected"), # display custom message in need
-    #   need(req(precursors()),"no Sequences"),
-    #   need(is.list(CheckTransPlot),"")
-    #   
-    #   
-    # )
     
     # fix xl
     maxXL <- max(unlist(lapply(CheckTransPlot,function(x){x$xl})))
@@ -1403,13 +1394,37 @@ server <- function(input, output, session){
       
       
       
-      par(mai= c(0.5,0.1,0.1,0),mfcol = c(ceiling(requiredPlots^0.5),ceiling(requiredPlots^0.5)),mgp=c(0,0.2,0.5))
+      par(mai= c(0.1,0.1,0.1,0),mfcol = c(ceiling(requiredPlots^0.5),ceiling(requiredPlots^0.5)),mgp=c(0,0.2,0.5))
       CenterPeakAlternative <- F
       
     }else{
       CenterPeakAlternative <-F
     }
-    selected_transitions <<- input$selected_transitions
+    # selected_transitions <- input$selected_transitions
+    FocusSpecificFragments <- T
+    if(input$FocusSpecificFragments){
+      Ta <- gsub("^mz","SpecificFragments#",CheckTransPlot[[1]]$namesAna)
+      dbl <-dblistT(dbpath())
+      if(all(dbl!=Ta)){
+        shiny::showNotification("All fragments are library specific.")
+        
+      }else{
+
+        fi <- dbread(Ta,dbpath())
+        specificFragments <- fi$Matches
+        CheckTransPlot <- lapply(CheckTransPlot,function(x){
+          com <- x$colmap
+          com[,2] <- "#33333320"
+          me <- match(specificFragments,com[,1])
+          if(length(me)>0){
+            com[me,2] <- "#FF0000"
+          }
+          x$colmap <- com
+          x
+        })
+      }
+    }
+    
     lapply(CheckTransPlot,plot,maximalnumber = 500)
     if(length(CheckTransPlot)>0&!input$allRawFiles){
       par(new=T,mfrow = c(1,1))
@@ -1453,8 +1468,6 @@ server <- function(input, output, session){
       usrfun <- par()$usr[1:2]
       par(mai = c(0,usr[2],0,usr[4]))
       try({
-        
-        
         plot(hu[,1],RT,frame =F,pch = 3,axes = F,xlim = usrfun,type = "n")
         abline(h=pretty(RT),col = "grey",lty = "dotted")
         QU <- quantile(RT,probs = c(0.10,0.9),na.rm = T)
