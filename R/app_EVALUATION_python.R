@@ -193,11 +193,12 @@ ui <- fluidPage(
                                       fluidRow(column(6,actionButton("reset", "Reset Assignments"),style = "margin-top: 10px")),
                                       fluidRow(column(12,switchInput("supersmooth_I_set","Smoother",value = F),style="margin-top:20px")),
                                       fluidRow(column(12,switchInput("CenterPeak",label = "Center Peak",width="auto"))),
-                                      fluidRow(column(12,switchInput("FocusSpecificFragments",label = "Highlight specific fragments",width="auto")))
+                                      fluidRow(column(12,switchInput("FocusSpecificFragments",label = "Highlight specific fragments",width="auto"))),
+                                      # fluidRow(column(12,switchInput("RTalign",label = "Align RTs",width="auto"))),
                                       
                                     ),
                                     wellPanel(
-                                      fluidRow(conditionalPanel("false",column(12,switchInput("Align",label = "RT Alignment",FALSE)))
+                                      fluidRow(conditionalPanel("true",column(12,switchInput("Align",label = "RT Alignment",FALSE)))
                                                ),
                                       
                                       fluidRow(column(12,selectInput("secPlotType","Added Info",    c("FDR",
@@ -1880,9 +1881,9 @@ server <- function(input, output, session){
         if(length(Tempx$DL_Scores)==0){
           Tempx$DL_Scores <- -5
         }
-        
+      
         if(input$Align){
-          Tempx$RT_Used <- as.numeric(Tempx$RT2)
+          Tempx$RT_Used <- as.numeric(Tempx$RTalign)
           Tempx$Peaks  <- as.numeric(Tempx$Peaks2) 
         }else{
           Tempx$RT_Used <- as.numeric(Tempx$RT_min)
@@ -2148,6 +2149,9 @@ server <- function(input, output, session){
         })
         
       }
+    
+      
+      
       return(A)
     }else{return(AnalyzedTransitions1())}
     cat("AnalyzedTransitione Done")
@@ -2903,7 +2907,12 @@ server <- function(input, output, session){
             
           }else{
             # dbp <- dbpath()
-            tempa$RT_Used <- tempa$RT_min
+            if(length(tempa$RTalign)>0&input$RTalign){
+              tempa$RT_Used <- tempa$RTalign
+            }else{
+              tempa$RT_Used <- tempa$RT_min
+            }
+            
             tempa$FDR <- tempa$FDR_RF_all
             FDRcut <- FDRpep
             tempa <<- tempa

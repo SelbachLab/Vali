@@ -147,15 +147,49 @@ PrepareTransitionList <- function(mainPath,maxquant,inclusionList,ppm = 10,ppm2 
   if(ExpandingSpecificity){
     try(ExpandSpectrumSpecificity(InclusionlistPath))
   }
-  # try({rm(db)})
-  
-  # if(length(session) != 0){
-  #   progress <- Progress$new(session,min=0, max=8)
-  #   # on.exit(progress$close())
-  #   progress$set(message = 'compiling MS1 Scans',
-  #                detail = "This may take a while",value = 0)
-  # }
-  
+  RT_Alig <- F
+  if(RT_Alig){
+    cl <- makeCluster(10,outfile="")
+    setwd(mainPath)
+    clusterExport(cl,"ExtractTopIntMs1")
+    rs <- list.files(pattern=".raw")
+    parLapply(cl,rs,function(x){
+      library(rawrr)
+      library(data.table)
+      library(parallel)
+      ExtractTopIntMs1(x,100,NULL)
+    })
+    stopCluster(cl)
+    Aligment_MD <- RT_Alignment(mainPath)
+    save(Aligment_MD,file=paste(mainPath,"RT_Alignment.rda",sep = "\t"))
+    dbname = "./PRM_Analyzer_Matches/PickyAnalyzer.sqlite"
+    if(file.exists(dbname)){
+      ta <- dblistT(dbname)
+      results <- lapply(grep("^mz",ta,value = T),function(x){
+        x <<- x
+        cat("\r",x)
+        mztemp <- dbread(x,dbname)
+        mztemp <- data.table(mztemp) 
+        mztemp[,RTalign:={
+          raf <- .BY$rawfile
+          rttemp <- RT_min
+          Amd <- gsub("TopInt","raw",basename(names(Aligment_MD)))
+          wh <- which(Amd==raf)
+          if(length(wh)==1){
+            md <- Aligment_MD[[wh]]$md_RT
+            rtalign <- predict(md,rttemp*60)/60
+          }else{
+            rtalign <- rttemp
+          }
+         
+          rtalign
+        },rawfile]
+        dbwrite(mztemp,x,dbname,overwrite=T)
+      })
+    
+  }
+  }
+
   try(CompileMS(wd = "./",dbname = "./PRM_Analyzer_Matches/PickyAnalyzer.sqlite",session = NULL))
   return(NULL)
 }
@@ -1245,7 +1279,7 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
     dbDisconnect(dbscans)
     
     if(ExtractMS1){
-      EVENTS <- ms1scans$scanNumber#[which(mz>=lib_precursor[1]&mz<=lib_precursor[2])]
+      EVENTS <- ms1scans$scan#[which(mz>=lib_precursor[1]&mz<=lib_precursor[2])]
       EVENTS <- sort(EVENTS)
       
       if(length(session) != 0){
@@ -1278,8 +1312,8 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
         MASSES <- mz*ch-ch*1.00784+c(0:5)
         mzs <- (MASSES+ch*1.00784)/ch
         
-        XICs <- readXICs(r,masses = mzs,tol = ppm1)# unclear how this function works
-        
+        system.time(XICs <- readChromatogram(r,mass = mzs,tol = ppm1,type="bpc"))# unclear how this function works
+       
         Ranges <- lapply(XICs,function(x){x$times})
         TRange <- sort(unique(unlist(Ranges)))
         ms1Int <- sapply(XICs,function(x){
@@ -3502,7 +3536,7 @@ RTcandidatesFun <- function(ana,FDRcutoff,RTranges = NULL,supersmooth=F,supersmo
   CANDIDATE_RT
 }
 ## PLOTTING
-plotTransitions <- function(Index,x,yl = NULL,add = F,TransitionColors = T,col = 1,SelectedRetentionTime = NA,Ppos = NULL,addGrid = F,lwdpoints = 1,maximalnumber = 500,plotTransitions=NULL,...){
+plotTransitions <- function(Index,x,yl = NULL,add = F,TransitionColors = T,col = 1,SelectedRetentionTime = NA,Ppos = NULL,addGrid = F,lwdpoints = 1,maximalnumber = 500,plotTransitions=NULL,selected_transitions=NULL,...){
   
   # x <<- x
   # Index <<- Index
@@ -3715,7 +3749,7 @@ plot.analyzed.transition <- function(x,type = "Volcano",yl = NULL,xl = NULL,Ppos
     cat("\rStart plotTransitions")
     plotTransitions(Index = as.numeric(x$RT_Used),x = transitions,yl = yl,xlim = xl,
                     TransitionColors = TransitionColors,col = colAll,add = add,
-                    frame = F,xlab = xla,ylab = yla,Ppos = Ppos,axes = !blankplot)
+                    frame = F,xlab = xla,ylab = yla,Ppos = Ppos,axes = !blankplot,selected_transitions=selected_transitions)
     cat("\rFinished plotTransitions")
     
     x <- xbackup
@@ -7726,3 +7760,237 @@ fun_pairwisecomparison <- function(Spectratable_seq1, Spectratable_seq2,SearchMo
   }
   
   return(fragmentvector) }
+# RT Alignment ##############
+ExtractTopIntMs1 <- function(r,TopInt=100,ms1scans=NULL){
+  if(any(grepl("\\.raw$|\\.d$",r))){
+    # if(length(ms1scans)==0){
+    # }
+    ms1scans <- readIndex(r)
+    
+    scans <- ms1scans$scan[ms1scans$MSOrder=="Ms"]
+    scangroups <- split(scans, ceiling(seq_along(scans)/50))
+    
+    unlink(rname <- gsub("\\.raw$|\\.d$",".TopInt",r))
+    it <- 0
+    for(g in scangroups){
+      it <- it+1
+      cat("\r",it,"/",length(scangroups))
+      ms1 <- readSpectrum(r,g)
+      TopIntTa <- lapply(ms1,function(x){
+        x <- x
+        ta <<- data.table(mz=x$mZ,I=x$intensity)
+        ta <- ta[,.(I=max(I)),.(mz=round(mz,2))]
+        ta <- ta[order(ta$I,decreasing = T),]
+        if(dim(ta)[1]>=TopInt){
+          ta <- ta[1:TopInt,]
+        }
+        ta$RT <- x$rtinseconds
+        ta
+      })
+      TopIntTa <- rbindlist(TopIntTa)
+      fwrite(TopIntTa,rname,sep = "\t",append = T)
+      rm(ms1)
+      gc()
+    }
+  }else{
+    stop("Not compatible Raw File detected.")
+  }
+  
+  rname
+}
+
+
+ReferenceAlignment <- function(p1,p2,readTables=T,maxTopInt = 10,refmz=NULL,AlignWindow=60*20,sp = 0.4,extention = 1000){
+  library(pracma)
+  library(data.table)
+  
+  if(readTables){
+    print(paste("Starting Alignment of",basename(p1)))
+    fi1 <- fread(p1,sep = "\t")
+    fi2 <- fread(p2,sep = "\t")
+  }else{
+    print("Starting Alignment")
+    fi1 <<- p1
+    fi2 <<- p2
+    p1 <- "hu"
+    p2 <- "ha"
+  }
+
+  if(length(refmz)!=0){
+    fi1 <- fi1[!is.na(match(mz,refmz))]
+    fi2 <- fi2[!is.na(match(mz,refmz))]
+  }
+  fi1 <- fi1[,.(I=max(I)),.(RT=round(RT),mz)]
+  fi1$I <- fi1$I/median(fi1$I)
+  fi1 <- fi1[,{.SD[order(I,decreasing = T)][1:maxTopInt]},RT]
+  fi2 <- fi2[,.(I=max(I)),.(RT=round(RT),mz)]
+  fi2$I <- (fi2$I/median(fi2$I))
+  fi2 <- fi2[,{.SD[order(I,decreasing = T)][1:maxTopInt]},RT]
+  # 
+  # # aligning
+  # AlignWindow <- 
+  
+  options(warn=-1)
+  ficombi <- fi1[,{
+    tempCombi_mean <- NULL
+    temp <<- .SD
+    grp <<- .BY
+    try({
+      # print("start")
+      cat("\r",.GRP)
+      
+      wi <- ppmWindow(grp$mz,ppm = 10)
+      fi2temp <- fi2[mz>=wi[1]&mz<=wi[2]]
+      fi2temp$RT2 <- fi2temp$RT
+      fi2temp$RT <- NULL
+      tempCombi <-  temp[,{
+        rttemp <- c(.BY$RT-AlignWindow/2,.BY$RT+AlignWindow/2)
+        tempfun <-fi2temp[fi2temp$RT2>=rttemp[1]&fi2temp$RT2<=rttemp[2]]
+        tempfun$I2 <- I
+        tempfun
+      },RT]
+      QCutOff <- 0.75
+      tempCombi[,IRatio:=log2(I/I2)]
+      tempCombi[,RTdiff:=(RT-RT2)]
+      # smoothScatter(tempCombi$RT,tempCombi$RTdiff)
+      # tempCombi <- tempCombi[I>=quantile(tempCombi$I,QCutOff)|I2>=quantile(tempCombi$I2,QCutOff)]
+      # tempCombi <- tempCombi[abs(IRatio)<3]
+      if(dim(tempCombi)[1]>0){
+        tempCombi <<- tempCombi
+        tempCombi_mean <-  tempCombi[,{
+          temp2 <<- .SD
+          BSFiP<- lapply(1:1,function(x){
+            # h1 <- density(sample(tempCombi$RTdiff,replace = T),bw = 10)
+            h1 <- density((temp2$RTdiff),bw = 10)
+            
+            fip <- findpeaks(h1$y,nups = 10,ndowns = 10)
+            fip[,2] <- h1$x[fip[,2]]
+            
+            as.data.frame(fip)
+          })
+          BSFiP <- rbindlist(BSFiP)
+          
+          # if(dim(BSFiP)[1]>1){
+          #   BSFiP_d <- density(BSFiP$V2)
+          #   BSFiP_dfp <- findpeaks(BSFiP_d$y)
+          #   BSFiP_dfp[,2] <- BSFiP_d$x[BSFiP_dfp[,2]]
+          #   BSFiP_dfp <- BSFiP_dfp
+          # }else{
+          #   
+          # }
+          
+          
+          BSFiP$I <- sum(temp2$I)
+          BSFiP$I2 <- sum(temp2$I2)
+          BSFiP
+        },RT]
+        if(dim(tempCombi_mean)[1]==0|dim(tempCombi_mean)[2]!=7){
+          tempCombi_mean <- NULL
+        }
+        
+      }
+      
+    },silent = T)
+    tempCombi_mean
+  },.(mz)]
+  ficombi <- ficombi[order(ficombi$RT)]
+  data.table::setnames(ficombi,c("V1","V2"),c("Height","median_shift"))
+  # wei <- ficombi$I2+ficombi$I
+  # rtshifts <- ficombi$median_shift
+  # MedianRTdiff <- ficombi[,.(medianshift=median(median_shift),H=median(Height),RT=median(RT)),cut(RT,breaks = 1000)]
+  averageLength <- 1000
+  
+  ficombi[,Sel:={
+    q <- quantile(median_shift,c(0.3,0.7))
+    median_shift>=q[1]&median_shift<=q[2]
+  },RT]
+  ficombitest <- ficombi[Sel==TRUE]
+  if(dim(ficombitest)[1]>averageLength){
+    selstart <- 1:averageLength
+    selstop <- (dim(ficombitest)[1]-averageLength+1):dim(ficombitest)[1]
+  }else{
+    di <- round(dim(ficombitest)[1]*0.1)
+    selstart <- 1:di
+    selstop <- (dim(ficombitest)[1]-di+1):dim(ficombitest)[1]
+  }
+  
+  h <- mean(ficombitest$Height[selstop])
+  s <- mean(ficombitest$Height[selstart])
+  repfac <- 1000
+  lo3 <- loess(c(rep(0,repfac),
+                 ficombitest$median_shift,
+                 rep(0,repfac))~
+                 c(-(repfac:1),ficombitest$RT,c((max(ficombitest$RT)+1):
+                                                  c(max(ficombitest$RT)+repfac))),
+               weights = c(rep(0.5,repfac),ficombitest$Height,rep(0.5,repfac)),
+               span = sp)
+  smoothScatter(ficombi$RT,ficombi$median_shift,xlab=paste("RT",basename(p1)),ylab="Delta RT")
+  
+  points(lo3$x,lo3$fitted,type="l",col = 3)
+  
+  fi1_small <- fi1[,.(I=max(I)),.(RT=round(RT))]
+  fi1_small$I <- fi1_small$I/max(fi1_small$I)
+  fi2_small <- fi2[,.(I=max(I)),.(RT=round(RT))]
+  fi2_small$I <- fi2_small$I/max(fi2_small$I)
+  plot(fi1_small$RT,fi1_small$I,type="h",ylim=c(-1,1),xlab="RT [s]",ylab="Max Intensity")
+  points(fi2_small$RT,-fi2_small$I,type="h",col = 2)
+  RTdiff <- predict(lo3,fi1_small$RT)
+  loRT  <- loess(fi1_small$RT-RTdiff~fi1_small$RT,span=0.25)
+  NewRT <- predict(loRT,fi1_small$RT)
+  
+  points(NewRT,fi1_small$I,type="h",col = 3)
+  abline(h=0)
+  legend("topright",c(basename(p1),paste(basename(p1),"Aligned")),fill=c(1,3),cex = 0.5)
+  legend("bottomright",paste(basename(p2),"Reference"),fill=c(2),cex = 0.5)
+  
+  
+  # 
+  # plot(fi1_small$RT,fi1_small$RT-RTdiff,xlab = "old RT",ylab = "new RT",main = basename(p1),type="l")
+  # points(loRT$x,loRT$fitted,type="l",col = 2)
+  # abline(0,1,col=1,lty = "dotted")
+  
+  list(md_RTdiff = lo3,md_data= ficombi,md_RT=loRT,file=p1,reference=p2)
+  # smoothScatter(log2(ficombi$I),log2(ficombi$I2))
+  # smoothScatter(ficombi$RT,ficombi$median_shift)
+  # lo <- loess(ficombi$median_shift~ficombi$RT,weights = ficombi$I2+ficombi$I,span=0.5)
+  # points(lo$x,lo$fitted,col = 2,type="l")
+}
+RT_Alignment <- function(path){
+  library(data.table)
+  fi <- list.files(path,pattern="TopInt$",full.names = T)
+  lifi <- lapply(fi,fread,sep = "\t")
+  lifi <- lapply(1:length(fi),function(i){
+    x <- lifi[[i]]; 
+    x$file <- fi[[i]];
+    x})
+  
+  mzList <- lapply(lifi,function(x){
+    x[,.(L=length(I),maxI=max(I),avRT=mean(RT),sdRT=sd(RT)),.(mz,file)]
+  })
+  
+  mzListrb <- rbindlist(mzList)
+  mzListrb[,rfL:=length(L),mz]
+  mzListMax <- mzListrb[rfL==max(rfL)]
+  
+  # smoothScatter(mzListrb$avRT,mzListrb$sdRT,ylim=c(0,100))
+  # library(ggplot2)
+  # ggplot(mzListrb,aes(avRT,sdRT,col=file))+geom_smooth()
+  # Select ReferenceRawFile:
+  MaxFile <- mzListMax[,.(max=sum(maxI),L=length(unique(avRT)),R=diff(range(avRT))),file]
+  
+  RefFi <- MaxFile[L>=quantile(L,0.75)][R==max(R)]$file
+  refmz <- unique(mzListMax$mz)
+  
+  pdf("Alignment_vali.pdf")
+  try({
+    AlignMD <- lapply(setdiff(mzListMax$file,RefFi),function(x){
+      ReferenceAlignment(x,RefFi,AlignWindow = 50000,refmz = unique(mzListMax$mz))
+    })
+    names(AlignMD) <- setdiff(mzListMax$file,RefFi)
+  })
+ 
+  dev.off()
+  # system("open Alignment_vali.pdf")
+  AlignMD
+}
+
