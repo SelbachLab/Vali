@@ -1102,29 +1102,7 @@ server <- function(input, output, session){
       # print(SelectedMass)
       
       TransitionColors <- T
-      # if(length(ana) > 1){
-      #   TransitionColors <- F
-      # }
-      # if(SimultaneousMassShiftvec ){
-      #   par(mai = c(0.1,0.8,0.1,0.9),mfrow = c(length(ana),1))
-      #   
-      # }else{
-      #   par(mai = c(0.8,0.8,0.1,0.9),mfrow = c(length(ana),1))
-      #   
-      # }
-      # if(setallrf){
-      #   rfall.i.initialized <- rfall.i
-      #   rfall.i <- rfall
-      #   requiredPlots <- length(rfall.i) * length(ana)
-      #   
-      #   
-      #   
-      #   par(mai= c(0.1,0.1,0.1,0),mfcol = c(ceiling(requiredPlots^0.5),ceiling(requiredPlots^0.5)))
-      #   CenterPeakAlternative <- T
-      #   
-      # }else{
-      #   CenterPeakAlternative <-F
-      # }
+      
       cat("\r started loop")
       TransplotListALL <- list()
       rf <- rfall.i
@@ -1175,19 +1153,7 @@ server <- function(input, output, session){
               TransplotListALL[[ITplotting]] <- tempList
               
               
-              # detecting MS2 ANalysis range:
-              # try({
-              #   anafun <- sapply(ana,function(x){c(x$mz[1],range(x$RT_Used,na.rm = T))})
-              #   mzms1 <- ms1scan_table$mz[1]
-              #   limits <- anafun[round(anafun[1,],1)==round(mzms1,1),]
-              #   
-              #   if(length(limits)>0){
-              #     RA <- range(anatemp$RT_Used[anatemp$rawfile==rf],na.rm = T)
-              #     abline(v=RA,col = "blue",lty = "dotted")
-              #     mtext( paste(unique(ms1scan_table$mz),unique(rf),sep= "\n"),cex = 0.7,adj = 0,col = "blue",line = -1,xpd = NA)
-              #   }
-              #   
-              # })
+           
               
               
             }
@@ -2251,6 +2217,7 @@ server <- function(input, output, session){
                                   supersmooth_bw_set = input$supersmooth_bw_set,
                                   ApplyMaximumWidth = input$ApplyMaximumWidth,
                                   Requantify_Priority= input$Requantify_Priority,
+                                  AlignedRTs = input$Align,
                                   session=session
                                   
       )
@@ -2304,6 +2271,7 @@ server <- function(input, output, session){
                                 supersmooth_bw_set = input$supersmooth_bw_set,
                                 ApplyMaximumWidth = input$ApplyMaximumWidth,
                                 Requantify_Priority= input$Requantify_Priority,
+                                AlignedRTs = input$Align,
                                 session=session
                                 
                                 
@@ -2340,11 +2308,16 @@ server <- function(input, output, session){
     validate(need(length(unique(CHECK))==1&length(CHECK)==analength,"Not All Species processed"))
     # Checking Boundaries 
     
-    sapply(DPALL,function(x){x$Q1})
-    sapply(DPALL,function(x){x$Q2})
+    # sapply(DPALL,function(x){x$Q1})
+    # sapply(DPALL,function(x){x$Q2})
+    if(input$Align){
+      Q1vec <- sapply(DPALL,function(x){x$Q1align[DPALL[[1]]$QuantitationType=="XIC"]})
+      Q2vec <- sapply(DPALL,function(x){x$Q2align[DPALL[[1]]$QuantitationType=="XIC"]})
+    }else{
+      Q1vec <- sapply(DPALL,function(x){x$Q1[DPALL[[1]]$QuantitationType=="XIC"]})
+      Q2vec <- sapply(DPALL,function(x){x$Q2[DPALL[[1]]$QuantitationType=="XIC"]})
+    }
     
-    Q1vec <- sapply(DPALL,function(x){x$Q1[DPALL[[1]]$QuantitationType=="XIC"]})
-    Q2vec <- sapply(DPALL,function(x){x$Q2[DPALL[[1]]$QuantitationType=="XIC"]})
     Q2vec[Q2vec==1] <- NA
     rf <- DPALL[[1]]$rawfile[DPALL[[1]]$QuantitationType=="XIC"]
     Q1vec <- apply(Q1vec,1,min,na.rm = T)
@@ -2357,7 +2330,11 @@ server <- function(input, output, session){
       NAME <- dbtaName(anaFun[i],dbp)
       tempdatadt <- data.table(tempdata)
       # Finding requantify candidates
-      tempdatadt[,c("Q1","Q2"):={
+      Q1Names <- c("Q1","Q2")
+      if(input$Align){
+        Q1Names <- c("Q1align","Q2align")
+      }
+      tempdatadt[,Q1Names:={
         temp <<- .SD
         rafi <<- .BY$rawfile
         if(all(is.na(Q1))){
@@ -2379,7 +2356,13 @@ server <- function(input, output, session){
         if(any(temp$Requantify=="+")&any(!is.na(temp$Q1))){
           tempa <- anaFun[[i]]
           SplitList <- SplitTransitionInfo(tempa)
-          X_limit <- c(temp$Q1[1],temp$Q2[1])
+          if(input$Align){
+            X_limit <- c(temp$Q1align[1],temp$Q2align[1])
+            
+          }else{
+            X_limit <- c(temp$Q1[1],temp$Q2[1])
+            
+          }
           PeakDetected <- DetectPeak_v2(pe <- min(X_limit,na.rm = T)+diff(X_limit)/2,diff(X_limit)/2,SplitList$Transitions,
                                      SplitList$Info$RT_Used,
                                      presetQuantiles = X_limit,scores = SplitList$Info$DL_Scores)#$quantile
@@ -2768,8 +2751,9 @@ server <- function(input, output, session){
     supersmooth_bw_set_vec <<- input$supersmooth_bw_set
     ApplyMaximumWidth_vec <<-   input$ApplyMaximumWidth
     Requantify_Priority <<- input$Requantify_Priority
+    AlignedRTs <<- input$Align
     threads <- input$Threads
-    save(anaexport,threads,dbp,FDRpep,MinPeakWidth_vec,supersmooth_bw_set_vec,ApplyMaximumWidth_vec,Requantify_Priority,Requantify_Priority,SystemPath,
+    save(anaexport,AlignedRTs,threads,dbp,FDRpep,MinPeakWidth_vec,supersmooth_bw_set_vec,ApplyMaximumWidth_vec,Requantify_Priority,Requantify_Priority,SystemPath,
          minthresh,RTwin,MaxPeakWidth_vec,MinPeakWidth_vec,file="Export_Vali.rda")
     
     RscriptPath <- paste(SystemPath,"R/ParallelExport.R",sep = "/")
@@ -2941,7 +2925,8 @@ server <- function(input, output, session){
                                             supersmooth_I_set = F,#input$supersmooth_I_set,
                                             supersmooth_bw_set = supersmooth_bw_set_vec,
                                             ApplyMaximumWidth =  ApplyMaximumWidth_vec,
-                                            Requantify_Priority= Requantify_Priority
+                                            Requantify_Priority= Requantify_Priority,
+                                            AlignedRTs = AlignedRTs
                                             
             )
 
