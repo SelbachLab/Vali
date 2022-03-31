@@ -54,6 +54,7 @@ if(length(args1) >0){
   
   
 }
+# SystemPath <- "E:/MaxQuant/MVB/Vali_20210914_Preliminary_experiment/Vali-master/Vali-master/"
 print("Evaluating Path")
 if(!exists("SystemPath")){
   try(SystemPath <- dirname(dirname(rstudioapi::documentPath())))
@@ -86,13 +87,13 @@ sy <- Sys.info()
 PresetPaths <- F
 if(PresetPaths){
   if(any(grep("windows",Sys.info(),ignore.case = T))){
-    mainPath  = "E:/Projects/Picky_PRM_Test/PRManalyzerTest/"
+    mainPath  = ""
     maxquant = mainPath
-    inclusionList = "E:/Projects/Picky_PRM_Test/PRMUPS_TRUE/"
+    inclusionList = ""
   }else{
-    mainPath <- ("/Users/henno/Documents/Skr?ipte/R-Functions/Selbach-Functions/DataAnalysis/Picky_Analyzer/TestRun")
-    maxquant <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/Miffy/PRM_TEST_YEAST_2/PRM_T"
-    inclusionList <- "/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/Miffy/PRM_TEST_YEAST_2/PRMUPS_TRUE"
+    mainPath <- ("")
+    maxquant <- ""
+    inclusionList <- ""
   }
 }else{
   mainPath <- "/~"
@@ -105,8 +106,7 @@ print("SystemPath:")
 print(SystemPath)
 
 
-sourcescript = paste(SystemPath,"/R/EvaluationScript_PRM_sqlite.R",sep = "")
-Py_MSFR_Module = c(paste(SystemPath,"/Py/MSFileReader_PRM_2.py",sep = ""),paste(SystemPath,"/Py/MSFileReader_PRM_3.py",sep = "")) # Newer with random matches but not so well working
+sourcescript = paste(SystemPath,"/R/Vali_Functions.R",sep = "")
 
 # Setting Paths, reading functions
 print(getwd())
@@ -140,7 +140,7 @@ ui <- fluidPage(
 
             }
            "
-         ))),
+    ))),
   #tags$head(tags$style(".shiny-progress {top: 50% !important;left: 50% !important;margin-top: -100px !important;margin-left: -250px !important; color: blue;font-size: 20px;font-style: italic;}")),
   tags$script(inactivity),   
   
@@ -163,7 +163,7 @@ ui <- fluidPage(
                           column(3,selectInput("sortType","Sorting",c("FDR","DL_Scores","RF_Scores","Count","SCA","Rating","mz","Sequence"),selected = "DL_Scores")),
                           column(2,prettyRadioButtons("Decreasing","+/-",c("+","-"),selected = "-",inline = T))
                  ),
-
+                 
                  
                  # chromatogram --------- plot
                  wellPanel(style = "background-color: #ffffff;",
@@ -171,26 +171,30 @@ ui <- fluidPage(
                              column(3,
                                     # mainPanel(h5("Precursor Rating"),width = "100%"),
                                     wellPanel(
-                                    fluidRow(column(12,textOutput("PrecursorQuality"),style="margin-bottom:5px")),
-                                    fluidRow(column(4,actionButton("BadPeak","",icon = icon("thumbs-down"),style="color: #ff2600; border-color: #ff2600")),
-                                             column(4,actionButton("notdefinedPeak","",icon = icon("stethoscope"),style="color: #2e6da4; border-color: #2e6da4")),
-                                             column(4,actionButton("GoodPeak","",icon = icon("thumbs-up"),style="color: #00b19c; border-color: #00b19c"))))     ,                       
-
+                                      fluidRow(column(12,textOutput("PrecursorQuality"))),
+                                      fluidRow(column(4,actionButton("BadPeak","",icon = icon("thumbs-down"),style="color: #ff2600; border-color: #ff2600")),
+                                               column(4,actionButton("notdefinedPeak","",icon = icon("stethoscope"),style="color: #2e6da4; border-color: #2e6da4")),
+                                               column(4,actionButton("GoodPeak","",icon = icon("thumbs-up"),style="color: #00b19c; border-color: #00b19c")),style = "border: 1px"),
+                                      )     ,                       
+                                    
                                     # checkboxInput("PRMonly","PRM",value = T),
                                     conditionalPanel("false",
                                                      checkboxInput("SignificantOnly","SignificantOnly",value = F)
                                     ),
                                     wellPanel(
-                                      fluidRow(column(4,mainPanel(h5("Peak Assignment"),width = "100%"))),#column(8,checkboxInput("allshifts","All m/z",T))),
+                                      wellPanel(
+                                      fluidRow(column(6,mainPanel(h5("Peak Assignment"),width = "100%"))),#column(8,checkboxInput("allshifts","All m/z",T))),
                                       
-                                      fluidRow(column(4,actionButton("ManualSetPeak","Set",style="background-color: #00b19c;color: #fff")),column(8,actionButton("RemovePeak","Remove",width = "100%",style="background-color: #ff2600;color: #fff"))),
+                                      fluidRow(column(6,actionButton("ManualSetPeak","Set",style="background-color: #00b19c;color: #fff",width = "100%")),column(6,actionButton("RemovePeak","Remove",width = "100%",style="background-color: #ff2600;color: #fff"))),
+                                      fluidRow(column(12,actionButton("reset", "Reset",style="background-color: #005493;color: #fff",width = "100%"),style = "margin-top: 10px")),
+                                      
                                       conditionalPanel("false",
                                                        fluidRow(column(12,actionButton("SetSearchArea","Area Search",width = "100%",style="background-color: #2e6da4;color: #fff"),style = "margin-top: 5px"))
                                                        
-                                                       ),
+                                      )
+                                      ),
                                       fluidRow(column(6,actionButton("Requantify","Requantify"),style = "margin-top: 10px")),
                                       fluidRow(column(12,selectInput("Requantify_Priority","Peak Priority",c("DL_Scores","Intensity","Light","Heavy","none")),style = "margin-top: 10px")),
-                                      fluidRow(column(6,actionButton("reset", "Reset Assignments"),style = "margin-top: 10px")),
                                       fluidRow(column(12,switchInput("supersmooth_I_set","Smoother",value = F),style="margin-top:20px")),
                                       fluidRow(column(12,switchInput("CenterPeak",label = "Center Peak",width="auto"))),
                                       fluidRow(column(12,switchInput("FocusSpecificFragments",label = "Highlight specific fragments",width="auto"))),
@@ -199,7 +203,7 @@ ui <- fluidPage(
                                     ),
                                     wellPanel(
                                       fluidRow(conditionalPanel("true",column(12,switchInput("Align",label = "RT Alignment",FALSE)))
-                                               ),
+                                      ),
                                       
                                       fluidRow(column(12,selectInput("secPlotType","Added Info",    c("FDR",
                                                                                                       "RF_Scores",
@@ -215,14 +219,14 @@ ui <- fluidPage(
                                                                                                       # "Peaks2"
                                                                                                       
                                       ),selected = "DL_Scores")))
-                                    ,
+                                      ,
                                       fluidRow(column(12,prettyRadioButtons("MStype","MS Level",c("MS1","MS2"),"MS2",inline=T)),
-                                              column(12,uiOutput("FDRpep"))),
-                                    fluidRow(column(12,actionButton("ExcludePrecursor","Exclude Precursor")))
-                                    
-                                    
+                                               column(12,uiOutput("FDRpep"))),
+                                      fluidRow(column(12,actionButton("ExcludePrecursor","Exclude Precursor")))
+                                      
+                                      
                                     )
-                                  
+                                    
                                     
                                     
                                     
@@ -241,37 +245,37 @@ ui <- fluidPage(
                              ),
                              column(9,
                                     wellPanel(
-                                    fluidRow(
-                                      column(10,uiOutput("rawfile")),
-                                      column(2,switchInput("allRawFiles","all",FALSE),style="margin-top:25px")),
-                                  
-                                    
-                                    fluidRow(                              
-                                      column(3,uiOutput("pc2")),
-                                      column(2,switchInput("SimultaneousMassShift","all",value = T),style = "margin-top: 25px"),
-                                      column(1,actionButton("Minus","", icon = icon("minus"),style="color: #fff; background-color: #D3D3D3; border-color: #fff"),style = "margin-top: 25px"),
-                                      column(1,actionButton("Plus","", icon= icon("plus"),style="color: #fff; background-color: #D3D3D3; border-color: #fff"),style = "margin-top: 25px"),
-                                      column(1,actionButton("left","", icon= icon("arrow-left"),style="color: #fff; background-color: #888800; border-color: #fff"),style = "margin-top: 25px"),
-                                      column(1,actionButton("right","", icon= icon("arrow-right"),style="color: #fff; background-color: #888800; border-color: #fff"),style = "margin-top: 25px"),
-                                      column(1,actionButton("vertical","", icon= icon("arrows-v"),style="color: #fff; background-color: #008800; border-color: #fff"),style = "margin-top: 25px"),
-                                      column(1,actionButton("horiz","", icon= icon("arrows-h"),style="color: #fff; background-color: #008800; border-color: #fff"),style = "margin-top: 25px"),
-                                      column(1,actionButton("height","", icon= icon("arrow-up"),style="color: #fff; background-color: #000088; border-color: #fff"),style = "margin-top: 25px"),
+                                      fluidRow(
+                                        column(10,uiOutput("rawfile")),
+                                        column(2,switchInput("allRawFiles","all",FALSE),style="margin-top:25px")),
                                       
                                       
+                                      fluidRow(                              
+                                        column(3,uiOutput("pc2")),
+                                        column(2,switchInput("SimultaneousMassShift","all",value = T),style = "margin-top: 25px"),
+                                        column(1,actionButton("Minus","", icon = icon("minus"),style="color: #fff; background-color: #D3D3D3; border-color: #fff"),style = "margin-top: 25px"),
+                                        column(1,actionButton("Plus","", icon= icon("plus"),style="color: #fff; background-color: #D3D3D3; border-color: #fff"),style = "margin-top: 25px"),
+                                        column(1,actionButton("left","", icon= icon("arrow-left"),style="color: #fff; background-color: #888800; border-color: #fff"),style = "margin-top: 25px"),
+                                        column(1,actionButton("right","", icon= icon("arrow-right"),style="color: #fff; background-color: #888800; border-color: #fff"),style = "margin-top: 25px"),
+                                        column(1,actionButton("vertical","", icon= icon("arrows-v"),style="color: #fff; background-color: #008800; border-color: #fff"),style = "margin-top: 25px"),
+                                        column(1,actionButton("horiz","", icon= icon("arrows-h"),style="color: #fff; background-color: #008800; border-color: #fff"),style = "margin-top: 25px"),
+                                        column(1,actionButton("height","", icon= icon("arrow-up"),style="color: #fff; background-color: #000088; border-color: #fff"),style = "margin-top: 25px"),
+                                        
+                                        
+                                        
+                                      )
                                       
-                                    )
-                                    
-                                    
-                                    ,
-                                    
-                                    plotOutput("PlotOutput", height = plotheight,
-                                               dblclick = "plot1_dblclick",
-                                               brush = brushOpts(
-                                                 id = "plot1_brush",
-                                                 clip = F,
-                                                 resetOnNew = TRUE
-                                               )
-                                    )),
+                                      
+                                      ,
+                                      
+                                      plotOutput("PlotOutput", height = plotheight,
+                                                 dblclick = "plot1_dblclick",
+                                                 brush = brushOpts(
+                                                   id = "plot1_brush",
+                                                   clip = F,
+                                                   resetOnNew = TRUE
+                                                 )
+                                      )),
                                     wellPanel(
                                       
                                       fluidRow(
@@ -279,17 +283,17 @@ ui <- fluidPage(
                                         column(1,actionButton("all_Transitions",label = "all"),style = "margin-top: 25px"),
                                         column(1,checkboxInput("nomodifications","no mods",value = FALSE),style = "margin-top: 25px"),
                                         
-            
+                                        
                                         column(1,checkboxInput("top5","top10",value = FALSE),style = "margin-top: 25px"),
                                         tags$style(type='text/css', ".selectize-input { font-size: 12px; line-height: 12px;} .selectize-dropdown { font-size: 12px; line-height: 12px; }")
-                                      
+                                        
                                       )
                                       
                                     )
                                     
                                     
                                     ,
-                                    )
+                             )
                              #,
                              # column(width = 4, class = "well",
                              #        h4("Brush and double-click to zoom"),
@@ -367,14 +371,14 @@ ui <- fluidPage(
       # TAB PANEl ------
       tabPanel("Rawfile Scanner",icon=icon("folder-open"),
                wellPanel(
-              wellPanel(
-                 fluidRow(column(2,actionButton("mainPathButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "mainPath","Main Folder",value = mainPath,width = '100%'))) ,# Protein Selecter
-                 conditionalPanel("false",
-                 fluidRow(column(2,actionButton("MaxQuantButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "MaxQuant","MaxQuant txt",value = maxquant,width = '100%')))
-                 ),# Protein Selecter
-                 fluidRow(column(2,actionButton("inclusionListButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "inclusionList","Picky Export Folder",value = inclusionList,width = '100%'))) ,# Protein Selecter
-                 
-                 actionButton("saveSessionPaths",icon = icon("bed"),label = "Save Paths",style="margin-bottom=25px")),
+                 wellPanel(
+                   fluidRow(column(2,actionButton("mainPathButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "mainPath","Main Folder",value = mainPath,width = '100%'))) ,# Protein Selecter
+                   conditionalPanel("false",
+                                    fluidRow(column(2,actionButton("MaxQuantButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "MaxQuant","MaxQuant txt",value = maxquant,width = '100%')))
+                   ),# Protein Selecter
+                   fluidRow(column(2,actionButton("inclusionListButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "inclusionList","Picky Export Folder",value = inclusionList,width = '100%'))) ,# Protein Selecter
+                   
+                   actionButton("saveSessionPaths",icon = icon("bed"),label = "Save Paths",style="margin-bottom=25px")),
                  # fluidRow(column(1)),
                  wellPanel(
                    fluidRow(
@@ -396,7 +400,7 @@ ui <- fluidPage(
                      
                    )
                  )
-                ,
+                 ,
                  actionButton("goButton", "Go!",width = "100%",icon = icon("bullhorn")),
                  #,
                  #actionButton("savepaths", "Only Save Path",width = "100%"),
@@ -405,13 +409,13 @@ ui <- fluidPage(
                  textOutput("analyzedListPath")
                )
                
-              
+               
       ),
       tabPanel("Advanced Settings",icon=icon("skull-crossbones"),
                # sliderInput(inputId = "PeakWidth",label = "Peak Detection Width",min = 0,max = 40,step = 1,value = inputListStdSet$PeakWidth),
                conditionalPanel("false",
                                 selectInput("quantitationType","Quantitation Type",c("XIC","Intensities"),selected = c("XIC"))
-                                ),
+               ),
                wellPanel(
                  switchInput("ApplyMaximumWidth","ApplyMaximumWidth"),
                  numericInput("MinPeakWidth","MinPeakWidth [min]",min=0,value=0.16),
@@ -419,12 +423,12 @@ ui <- fluidPage(
                )
                ,
                wellPanel(
-                helpText("MS2 Description Filter"),
-                fluidRow(column(6,textInput("ScanStringFilter","MS2 Description Filter",value = NULL)),
-                         column(6,switchInput("ScanStringFilterInvert","Exclude Selection",value = T))
-                
-                         
-                         )),
+                 helpText("MS2 Description Filter"),
+                 fluidRow(column(6,textInput("ScanStringFilter","MS2 Description Filter",value = NULL)),
+                          column(6,switchInput("ScanStringFilterInvert","Exclude Selection",value = T))
+                          
+                          
+                 )),
                switchInput("EnableNeighborZeroImputation","NeighbourZeroImputation",value = T),
                sliderInput(inputId = "RetentionTimeWindow",label = "Peak Window",min = 0,max = 10,step = 0.1,value = inputListStdSet$RetentionTimeWindow),
                wellPanel(
@@ -451,15 +455,15 @@ server <- function(input, output, session){
   ## Removes Peaks from a m/z
   observeEvent(c(input$reset,input$Requantify_Priority),{
     print("Reseting")
-    DBL <<- dblistT(dbpath())
+    DBL <- dblistT(dbpath())
     db <- dbConnect(SQLite(),dbpath())
     dbname <- dbtaName(AnalyzedTransitions(),dbpath())
     sapply(dbname,function(na){
       gr <- any(DBL==na)
       if(gr){
-          print(paste("Removing",na))
-          dbRemoveTable(db,na)
-      
+        print(paste("Removing",na))
+        dbRemoveTable(db,na)
+        
       }else{
         print(na,"not found.")
       }
@@ -472,7 +476,7 @@ server <- function(input, output, session){
   dbpath <- reactive({
     validate(need(file.exists(input$mainPath),"No directory available."))
     setwd(input$mainPath);paste(TransitionListsDir(),"PickyAnalyzer.sqlite",sep = "")
-    })
+  })
   
   # Sessions Settings #######
   # library for reanalysis:
@@ -763,7 +767,7 @@ server <- function(input, output, session){
   })
   ##  Sequences for Ui from precursors()
   output$pc1 <- renderUI({
-
+    
     precursorTable <- precursors()
     validate(
       need(is.data.frame(precursorTable),"no Sequences")
@@ -906,7 +910,7 @@ server <- function(input, output, session){
         sel <- sel[1:10]
       }
     }
-  
+    
     trans <- trans[trans!="rawfile"]
     print("Transitions Done")
     selectizeInput("selected_transitions", "fragments",
@@ -1153,7 +1157,7 @@ server <- function(input, output, session){
               TransplotListALL[[ITplotting]] <- tempList
               
               
-           
+              
               
               
             }
@@ -1376,7 +1380,7 @@ server <- function(input, output, session){
         shiny::showNotification("All fragments are library specific.")
         
       }else{
-
+        
         fi <- dbread(Ta,dbpath())
         specificFragments <- fi$Matches
         CheckTransPlot <- lapply(CheckTransPlot,function(x){
@@ -1673,7 +1677,7 @@ server <- function(input, output, session){
                               #pythonpath =pythonpath[as.numeric(input$Python3)+1],
                               test = input$Recompile,
                               useDIA=input$DIA,ScanStringFilter = input$ScanStringFilter,ScanStringFilterInvert = input$ScanStringFilterInvert
-                                ))
+    ))
     
     session$reload()
     validate(need(file.exists(wd),"No valid directory."))
@@ -1847,7 +1851,7 @@ server <- function(input, output, session){
         if(length(Tempx$DL_Scores)==0){
           Tempx$DL_Scores <- -5
         }
-      
+        
         if(input$Align){
           Tempx$RT_Used <- as.numeric(Tempx$RTalign)
           Tempx$Peaks  <- as.numeric(Tempx$Peaks2) 
@@ -1879,7 +1883,7 @@ server <- function(input, output, session){
           selec.i <- selec.i[selec.i!="rawfile"]
           tr <- tr[tr!="rawfile"]
           updateSelectizeInput(session,"selected_transitions",choices =tr,selected =selec )
-
+          
         }
         return(Tempx)
       })
@@ -2110,12 +2114,12 @@ server <- function(input, output, session){
             tempi2 <- ta
           }
           data.frame(tempi2)
-  
-
+          
+          
         })
         
       }
-    
+      
       
       
       return(A)
@@ -2364,8 +2368,8 @@ server <- function(input, output, session){
             
           }
           PeakDetected <- DetectPeak_v2(pe <- min(X_limit,na.rm = T)+diff(X_limit)/2,diff(X_limit)/2,SplitList$Transitions,
-                                     SplitList$Info$RT_Used,
-                                     presetQuantiles = X_limit,scores = SplitList$Info$DL_Scores)#$quantile
+                                        SplitList$Info$RT_Used,
+                                        presetQuantiles = X_limit,scores = SplitList$Info$DL_Scores)#$quantile
           INFO <- SplitTransitionInfo(temp,"Q1")
           
           XIC <- c(PeakDetected$XIC,INFO$Info[INFO$Info$QuantitationType=="XIC",])
@@ -2763,7 +2767,7 @@ server <- function(input, output, session){
       progress_Export <- Progress$new(session,min=0, 1)
       on.exit(progress_Export$close())
       progress_Export$set(message = 'Starting parallel export.',
-                            detail = "",value = 0)
+                          detail = "",value = 0)
     }
     unlink("./ParallelExport/Finished_Parallel_Export")
     while(!file.exists("./ParallelExport/Finished_Parallel_Export")){
@@ -2781,13 +2785,13 @@ server <- function(input, output, session){
           cat("\r",Current <- round(sum(ExportResult)/length(anaexport),2))
           if(length(session)>0){
             progress_Export$set(message = "Working on parallel export.",
-                                   detail = paste(length(ID),"Processes running."),value = Current)
+                                detail = paste(length(ID),"Processes running."),value = Current)
           }
           if(length(list.files("ParallelExport/",pattern="Combining_DB_PeaksTables|CombiningTransitionLists|Combining_DB_PeaksTables"))>0){
             progress_Export$set(message = "Working on parallel export.",
                                 detail = paste(length(ID),"Processes running."),value = Current)
           }
-         
+          
         })
       }
       if(length(ra)>0){
@@ -2805,295 +2809,295 @@ server <- function(input, output, session){
       
     }
     if(0){
-    for(i in 1:length(anaexport)){
-      fifu <- anaexport[i]
-      cat("\rworking on ",fifu)
-      validate(need(file.exists("settings"),"No valid directory."))
-      
-      setwd("settings")
-      finame <- gsub(".txt$","",fifu)
-      # print("Loading Stuff")
-      if(file.exists(finame)){
-        load(finame)
-      }else{
-        inputList <- inputListStdSet
-      }
-      
-      # print("Export: Creating DP Table")
-      # Creating DP Table
-      inputList$FDR <- FDRpep
-      if(length(session) > 0){
-        progress$set(message = 'Export, working on:',
-                     detail = finame,value = i)
-      }
-      
-      setwd("../")
-      if(i==1){
-        unlink("./export/Peaks.txt")
+      for(i in 1:length(anaexport)){
+        fifu <- anaexport[i]
+        cat("\rworking on ",fifu)
+        validate(need(file.exists("settings"),"No valid directory."))
         
-      }
-      
-      PeaksName <- dbtaNameExport(dbp,ana = fifu)
-      PeaksNameRatin <- paste("RATING_",PeaksName,sep = "")
-      
-      
-      if(any(PeaksNameRatin== dblistT(dbp))){
-        # print("check Rating")
-        PrecursorRating <- dbread(PeaksNameRatin,db = dbp)$rating
-        # dbread(PeaksName,dbpath)
-        # print("Found Rating")
-        if(length(PrecursorRating) == 0){
+        setwd("settings")
+        finame <- gsub(".txt$","",fifu)
+        # print("Loading Stuff")
+        if(file.exists(finame)){
+          load(finame)
+        }else{
+          inputList <- inputListStdSet
+        }
+        
+        # print("Export: Creating DP Table")
+        # Creating DP Table
+        inputList$FDR <- FDRpep
+        if(length(session) > 0){
+          progress$set(message = 'Export, working on:',
+                       detail = finame,value = i)
+        }
+        
+        setwd("../")
+        if(i==1){
+          unlink("./export/Peaks.txt")
+          
+        }
+        
+        PeaksName <- dbtaNameExport(dbp,ana = fifu)
+        PeaksNameRatin <- paste("RATING_",PeaksName,sep = "")
+        
+        
+        if(any(PeaksNameRatin== dblistT(dbp))){
+          # print("check Rating")
+          PrecursorRating <- dbread(PeaksNameRatin,db = dbp)$rating
+          # dbread(PeaksName,dbpath)
+          # print("Found Rating")
+          if(length(PrecursorRating) == 0){
+            PrecursorRating <- "not set"
+          }
+        }else{
+          # print("not set Rating")
           PrecursorRating <- "not set"
         }
-      }else{
-        # print("not set Rating")
-        PrecursorRating <- "not set"
-      }
-      
-      
-      # check if Peptide (including or excluding PW) was already ana in the database  
-      TYPIES <- which(gsub(".$","",PeaksName)==gsub(".$","",dblistT(dbp)))
-      Lo <- dblistT(dbp)[TYPIES]
-      
-      LoopCount <- 1
-      if(length(TYPIES) >1){
-        LoopCount <- length(TYPIES)
-      }
-      # Loop is to account several Peak tables caused by different checked PeakWidths in the database, need to manually be selected afterwards
-      # print("Export: PeakCount")
-      try(rm("tempa"))
-      # dbp <- dbpath()
-      
-      for(PeakCount in 1:LoopCount){
-        tempa <<- dbread(x = fifu,dbp)
-        if(length(tempa$RF_Scores)==0){
-          tempa$RF_Scores <- 0
-        }
-        if(length(tempa$DL_Scores)==0){
-          tempa$DL_Scores <- 0
-        }
         
-        if(dim(tempa)[1]>=minthresh){
-          
-          if(length(TYPIES) > 0){
-            # print("FOUND")
-            # tempa$SCA_mz_fdr <- NULL # compatibility with datasets analyzed with different versions
-            # tempa$SCAfdr <- NULL# compatibility with datasets analyzed with differents
-            # tempa$FDR_DL_all <- NULL# compatibility with datasets analyzed with differents
-            # tempa$FDR_RF_all <- NULL# compatibility with datasets analyzed with differents
-            # 
-            # tempa$DL_Scores <- -10
-            cl <- class(try(DP <- dbread(Lo[PeakCount],dbp)))
-            PeakType <- "Manual"
-            pw <- inputList$PeakWidth
-            # pw <- as.numeric(strsplitslot(Lo[PeakCount],8,"_"))
-            # tempa <- dbread(x = fifu,dbpath())#
-            
-          }else{
-            # dbp <- dbpath()
-            if(length(tempa$RTalign)>0&input$RTalign){
-              tempa$RT_Used <- tempa$RTalign
-            }else{
-              tempa$RT_Used <- tempa$RT_min
-            }
-            
-            tempa$FDR <- tempa$FDR_RF_all
-            FDRcut <- FDRpep
-            tempa <<- tempa
-            FDRcut <<- FDRcut
-            CANDIDATE_RT <- RTcandidatesFun(list(tempa),FDRcut,Requantify_Priority=Requantify_Priority)
-            LI <- list(tempa)
-            names(LI) <- fifu
-            # DPlist_I <- DetectPeakWrapper(ana = ana,CANDIDATE_RT = CANDIDATE_RT,dbp = dbp,
-            #                             RetentionTimeWindow = RTwin,QType = "Intensities",Reanalysis = T,
-            #                             RT_BASED_onbestScore = T,
-            #                             MinPeakWidth=input$MinPeakWidth,
-            #                             MaxPeakWidth=input$MaxPeakWidth,
-            #                             supersmooth_I_set = input$supersmooth_I_set,
-            #                             supersmooth_bw_set = input$supersmooth_bw_set,
-            #                             ApplyMaximumWidth = input$ApplyMaximumWidth
-            # )
-            tempList <- list(tempa)
-            names(tempList) <- fifu
-            tempList <- tempList
-            DPlist_XIC <- DetectPeakWrapper(ana = tempList,CANDIDATE_RT = CANDIDATE_RT,dbp = dbp,
-                                            RetentionTimeWindow = RTwin,QType = "Intensities",
-                                            Reanalysis = F,
-                                            RT_BASED_onbestScore = T,
-                                            MinPeakWidth=MinPeakWidth_vec,
-                                            MaxPeakWidth=MaxPeakWidth_vec,
-                                            supersmooth_I_set = F,#input$supersmooth_I_set,
-                                            supersmooth_bw_set = supersmooth_bw_set_vec,
-                                            ApplyMaximumWidth =  ApplyMaximumWidth_vec,
-                                            Requantify_Priority= Requantify_Priority,
-                                            AlignedRTs = AlignedRTs
-                                            
-            )
-
-            # DP <- rbind(DPlist_I[[1]],DPlist_XIC[[1]])
-            DP <- data.table(DPlist_XIC[[1]],stringsAsFactors = F)
-            
-            tempa$PEP[is.na(tempa$PEP)] <- 1
-            # cl <- class(try(DP <- dbread(Lo[PeakCount],dbp)))
-            cl <- "everythingok"
-            # cl <- class(try(DP <- PeakFun(tempa,RetentionTimeWindow = inputList$RetentionTimeWindow,alpha = input$FDRpep,PeakWidth = inputList$PeakWidth,SimilarRT = F,session = session)))
-            PeakType <- "Automated"
-            pw <- inputList$PeakWidth
+        
+        # check if Peptide (including or excluding PW) was already ana in the database  
+        TYPIES <- which(gsub(".$","",PeaksName)==gsub(".$","",dblistT(dbp)))
+        Lo <- dblistT(dbp)[TYPIES]
+        
+        LoopCount <- 1
+        if(length(TYPIES) >1){
+          LoopCount <- length(TYPIES)
+        }
+        # Loop is to account several Peak tables caused by different checked PeakWidths in the database, need to manually be selected afterwards
+        # print("Export: PeakCount")
+        try(rm("tempa"))
+        # dbp <- dbpath()
+        
+        for(PeakCount in 1:LoopCount){
+          tempa <<- dbread(x = fifu,dbp)
+          if(length(tempa$RF_Scores)==0){
+            tempa$RF_Scores <- 0
           }
-          try({
-            # tlnx <<- tlnx
-            try(transname <- gsub("^mz","TRANS",fifu))
-            # print(transname)
-            dbl <- dblistT(dbp)
-            # print(dbl)
-            if(any(dbl==transname)){
-              # print("FoundTrans")
-              dbp <- dbpath()
-              TransSaved <- NULL
-              try(selec <- unlist(dbread(gsub("^PEAKS","TRANS",transname),db =dbp)))
-              transis <- colnames(tempa)[1:(which(colnames(tempa) == "charge")-1)]
-              notused <- which(is.na(match(transis,selec)))
-              if(length(notused)> 0){
-                showNotification("Excluding Fragments", duration = 1, closeButton =  TRUE, type = "warning")
-                tempa <- tempa[,-notused]
-              }
-              
-            }
-          })
-          # Writing Out FragmentTable
-          try({
-            tempa_dt <- data.table(tempa)
-            DPdt  <- data.table(DP)
-            # tempa <- cbind(tempa,DPdt[match(tempa$rawfile,DP$rawfile),.(Q1,Q2,Q1align,Q2align)])
-            tempa_dt[,Peak :=RT_min%between%DPdt[unlist(.BY)==rawfile,.(Q1,Q2)][1,],rawfile]
-            tempa_dt <- tempa_dt[Peak == TRUE,]
-            tempa_dt[,precursor_ID :=fifu]
-            tempa_dt$Precursor_Rating <- PrecursorRating
-            rf <- tempa_dt$rawfile
-            tempa_dt$rawfile <- NULL
-            tempa_dt$rawfile <- rf
-            id <- 1:(grep("^charge$",names(tempa_dt))-1)
-            
-            # check order of COlumns:
-            # tempa_dt <- tempa_dt
-            # id <- id
-            NAMES <- c(colnames(tempa_dt)[id],"charge","mz","index","RT_min","MatchCount","R","R_p","IntensitySum","SCAall","SCAcut","ZeroScore","DiffSum","FDR","PEP","SCA","CorrelationScoreMedian","CorrelationScoreMean","CorrelationScoreSD","CorrelationScoreSum","CorrelationScoreSumSpecial","CorrelationScoreSumSpecial2","Score","Peaks1","Peaks2","ScaBefore","ScaBefore2","ScaAfter","ScaAfter2","RF_Scores","DL_Scores","GBM_Scores","GLM_Scores","FDR_RFspl_peptide","FDR_RF_peptide","FDR_RF_all","FDR_DL_all","FDR_GLM_all","FDR_GBM_all","SCA_mz_fdr","SCAfdr","Peak","precursor_ID","Precursor_Rating","rawfile")
-            NAMES <- unique(NAMES)
-            MORDER <- match(NAMES,colnames(tempa_dt))
-            if(any(is.na(MORDER))){
-              try({showNotification(session,paste("missing columns in table",fifu))},silent = T)
-              for(i in which((is.na(MORDER)))){
-                tempa_dt <- cbind(tempa_dt,as.double(NA))
-              }
-              colnames(tempa_dt)[(dim(tempa_dt)[2]-(sum(is.na(MORDER))-1)):dim(tempa_dt)[2]] <- NAMES[is.na(MORDER)]
-            }
-            tempa_dt <- tempa_dt[,.SD,.SDcols=NAMES]
-            tempa_dt <- setcolorder(tempa_dt,NAMES)
-            
-            HUI <- melt(tempa_dt,measure.vars = id,id.vars = setdiff(1:dim(tempa_dt)[2],id))
-            HUI <- HUI[value >-1,]
-            # if(dim(HUI)[2]==46){
-            #   NAMES46 <<- colnames(HUI)
-            # }
-            # if(dim(HUI)[2]==47){
-            #   NAMES47 <<- colnames(HUI)
-            # }
-            
-            
-            
-            if(dim(HUI)[1]>0){
-              if(file.exists("./export/Peaks.txt")){
-                header_b <- F
-              }else{
-                header_b <- T
-                
-              }
-              write.table(HUI,"./export/Peaks.txt",sep = "\t",row.names = F,quote = F,append = T,col.names  = header_b)
-              
-            }
-          })
+          if(length(tempa$DL_Scores)==0){
+            tempa$DL_Scores <- 0
+          }
           
-          
-          
-          
-          # print(head(DP))
-          if(cl != "try-error"){
-            DPA <<- DP
-            DP <- DP
-            if(!all(is.na(DP$DL_Scores))){
-              
-              DP$QuantitationType[DP$QuantitationType=="intensity"] <-  "Intensities"
-              fifu <- fifu
-              fifu <- gsub("__","-",fifu)
-              DP <- data.frame(DP)
-              # trans <- DP[,1:(which(colnames(DP) == "Q1")-1)]
-              # info <- DP[,(which(colnames(DP) == "Q1")):dim(DP)[2]]
-              
-              
-              DPmelt <- melt(data.table(DP)[!is.na(DP$DL_Scores),],id.vars=(which(colnames(DP) == "Q1")):dim(DP)[2])
-              data.table::setnames(DPmelt,"value","Intensity")
-              data.table::setnames(DPmelt,"variable","Fragment")
-              
-              # xic <- trans[info$QuantitationType == "XIC",]
-              # int <- trans[info$QuantitationType == "Intensities",]
+          if(dim(tempa)[1]>=minthresh){
+            
+            if(length(TYPIES) > 0){
+              # print("FOUND")
+              # tempa$SCA_mz_fdr <- NULL # compatibility with datasets analyzed with different versions
+              # tempa$SCAfdr <- NULL# compatibility with datasets analyzed with differents
+              # tempa$FDR_DL_all <- NULL# compatibility with datasets analyzed with differents
+              # tempa$FDR_RF_all <- NULL# compatibility with datasets analyzed with differents
               # 
-              AddInf <- unlist(strsplit(fifu,"_"))
-              AddInf[1] <- gsub("^mz","",AddInf[1])
-              AddInf[length(AddInf)] <- gsub(".txt","",AddInf[length(AddInf)])
-              if(length(AddInf)< 6){
-                AddInf <- c(AddInf,rep(NA,6-length(AddInf)))
-                
-              }
-              if(length(AddInf)> 6){
-                AddInf[6] <- paste(AddInf[6:AddInf[length(AddInf)]],collapse = "_")
-                AddInf <- AddInf[1:6]
-              }
-              # longtab <- c()
-              # for(itr in 1:dim(trans)[2]){
-              #   longtab <- rbind(longtab,cbind(xic[,itr],int[,itr],colnames(trans)[itr],info))
-              # }
-              # melt(trans)
-              # print("longtab naming")
-              # colnames(longtab)[1:3] <- c("XIC","Intensities","Match") 
-              # rownames(longtab) <- NULL
-              # longtab$Intensities[is.na(longtab$Intensities)] <- 0
-              # longtab$XIC[is.na(longtab$XIC)] <- 0
-              # Remove <-longtab$XIC == 0&longtab$Intensities == 0
-              # Remove[is.na(Remove)] <- F
-              # longtab <- longtab[!Remove,]
-              # longtab$QuantitationType <- NULL
-              longtab <- DPmelt
-              MaIn <- matrix(AddInf,dim(longtab)[1],length(AddInf),byrow = T)
-              MaIn <- cbind(MaIn,PeakType,pw,PrecursorRating)
-              longtab$PeakType <- PeakType
-              longtab$PrecursorRating <- PrecursorRating
+              # tempa$DL_Scores <- -10
+              cl <- class(try(DP <- dbread(Lo[PeakCount],dbp)))
+              PeakType <- "Manual"
+              pw <- inputList$PeakWidth
+              # pw <- as.numeric(strsplitslot(Lo[PeakCount],8,"_"))
+              # tempa <- dbread(x = fifu,dbpath())#
               
-              InfInsert <- data.table(t(matrix((AddInf))))
-              longtab[,c("m/z","z","Sequence","Accession","Gene Symbol","Library_ScanID"):={
-                InfInsert
-              },]
-              if(length(MaIn)>0){
+            }else{
+              # dbp <- dbpath()
+              if(length(tempa$RTalign)>0&input$RTalign){
+                tempa$RT_Used <- tempa$RTalign
+              }else{
+                tempa$RT_Used <- tempa$RT_min
+              }
+              
+              tempa$FDR <- tempa$FDR_RF_all
+              FDRcut <- FDRpep
+              tempa <<- tempa
+              FDRcut <<- FDRcut
+              CANDIDATE_RT <- RTcandidatesFun(list(tempa),FDRcut,Requantify_Priority=Requantify_Priority)
+              LI <- list(tempa)
+              names(LI) <- fifu
+              # DPlist_I <- DetectPeakWrapper(ana = ana,CANDIDATE_RT = CANDIDATE_RT,dbp = dbp,
+              #                             RetentionTimeWindow = RTwin,QType = "Intensities",Reanalysis = T,
+              #                             RT_BASED_onbestScore = T,
+              #                             MinPeakWidth=input$MinPeakWidth,
+              #                             MaxPeakWidth=input$MaxPeakWidth,
+              #                             supersmooth_I_set = input$supersmooth_I_set,
+              #                             supersmooth_bw_set = input$supersmooth_bw_set,
+              #                             ApplyMaximumWidth = input$ApplyMaximumWidth
+              # )
+              tempList <- list(tempa)
+              names(tempList) <- fifu
+              tempList <- tempList
+              DPlist_XIC <- DetectPeakWrapper(ana = tempList,CANDIDATE_RT = CANDIDATE_RT,dbp = dbp,
+                                              RetentionTimeWindow = RTwin,QType = "Intensities",
+                                              Reanalysis = F,
+                                              RT_BASED_onbestScore = T,
+                                              MinPeakWidth=MinPeakWidth_vec,
+                                              MaxPeakWidth=MaxPeakWidth_vec,
+                                              supersmooth_I_set = F,#input$supersmooth_I_set,
+                                              supersmooth_bw_set = supersmooth_bw_set_vec,
+                                              ApplyMaximumWidth =  ApplyMaximumWidth_vec,
+                                              Requantify_Priority= Requantify_Priority,
+                                              AlignedRTs = AlignedRTs
+                                              
+              )
+              
+              # DP <- rbind(DPlist_I[[1]],DPlist_XIC[[1]])
+              DP <- data.table(DPlist_XIC[[1]],stringsAsFactors = F)
+              
+              tempa$PEP[is.na(tempa$PEP)] <- 1
+              # cl <- class(try(DP <- dbread(Lo[PeakCount],dbp)))
+              cl <- "everythingok"
+              # cl <- class(try(DP <- PeakFun(tempa,RetentionTimeWindow = inputList$RetentionTimeWindow,alpha = input$FDRpep,PeakWidth = inputList$PeakWidth,SimilarRT = F,session = session)))
+              PeakType <- "Automated"
+              pw <- inputList$PeakWidth
+            }
+            try({
+              # tlnx <<- tlnx
+              try(transname <- gsub("^mz","TRANS",fifu))
+              # print(transname)
+              dbl <- dblistT(dbp)
+              # print(dbl)
+              if(any(dbl==transname)){
+                # print("FoundTrans")
+                dbp <- dbpath()
+                TransSaved <- NULL
+                try(selec <- unlist(dbread(gsub("^PEAKS","TRANS",transname),db =dbp)))
+                transis <- colnames(tempa)[1:(which(colnames(tempa) == "charge")-1)]
+                notused <- which(is.na(match(transis,selec)))
+                if(length(notused)> 0){
+                  showNotification("Excluding Fragments", duration = 1, closeButton =  TRUE, type = "warning")
+                  tempa <- tempa[,-notused]
+                }
                 
-                # colnames(MaIn) <- c("m/z","z","Sequence","Accession","Gene Symbol","Library_ScanID","PeakType","Peak Detection Width","Rating")
-                # longtab <- cbind(longtab,MaIn)
-                # longtab <- unique(longtab)
-                # print("Writing")
-                # AddInf <- unlist(strsplit(fifu,"_"))
-                
-                if(!file.exists(fipath)){
-                  try(write.table(longtab,file = fipath,quote = F,row.names = F,append = F,sep = "\t"))
+              }
+            })
+            # Writing Out FragmentTable
+            try({
+              tempa_dt <- data.table(tempa)
+              DPdt  <- data.table(DP)
+              # tempa <- cbind(tempa,DPdt[match(tempa$rawfile,DP$rawfile),.(Q1,Q2,Q1align,Q2align)])
+              tempa_dt[,Peak :=RT_min%between%DPdt[unlist(.BY)==rawfile,.(Q1,Q2)][1,],rawfile]
+              tempa_dt <- tempa_dt[Peak == TRUE,]
+              tempa_dt[,precursor_ID :=fifu]
+              tempa_dt$Precursor_Rating <- PrecursorRating
+              rf <- tempa_dt$rawfile
+              tempa_dt$rawfile <- NULL
+              tempa_dt$rawfile <- rf
+              id <- 1:(grep("^charge$",names(tempa_dt))-1)
+              
+              # check order of COlumns:
+              # tempa_dt <- tempa_dt
+              # id <- id
+              NAMES <- c(colnames(tempa_dt)[id],"charge","mz","index","RT_min","MatchCount","R","R_p","IntensitySum","SCAall","SCAcut","ZeroScore","DiffSum","FDR","PEP","SCA","CorrelationScoreMedian","CorrelationScoreMean","CorrelationScoreSD","CorrelationScoreSum","CorrelationScoreSumSpecial","CorrelationScoreSumSpecial2","Score","Peaks1","Peaks2","ScaBefore","ScaBefore2","ScaAfter","ScaAfter2","RF_Scores","DL_Scores","GBM_Scores","GLM_Scores","FDR_RFspl_peptide","FDR_RF_peptide","FDR_RF_all","FDR_DL_all","FDR_GLM_all","FDR_GBM_all","SCA_mz_fdr","SCAfdr","Peak","precursor_ID","Precursor_Rating","rawfile")
+              NAMES <- unique(NAMES)
+              MORDER <- match(NAMES,colnames(tempa_dt))
+              if(any(is.na(MORDER))){
+                try({showNotification(session,paste("missing columns in table",fifu))},silent = T)
+                for(i in which((is.na(MORDER)))){
+                  tempa_dt <- cbind(tempa_dt,as.double(NA))
+                }
+                colnames(tempa_dt)[(dim(tempa_dt)[2]-(sum(is.na(MORDER))-1)):dim(tempa_dt)[2]] <- NAMES[is.na(MORDER)]
+              }
+              tempa_dt <- tempa_dt[,.SD,.SDcols=NAMES]
+              tempa_dt <- setcolorder(tempa_dt,NAMES)
+              
+              HUI <- melt(tempa_dt,measure.vars = id,id.vars = setdiff(1:dim(tempa_dt)[2],id))
+              HUI <- HUI[value >-1,]
+              # if(dim(HUI)[2]==46){
+              #   NAMES46 <<- colnames(HUI)
+              # }
+              # if(dim(HUI)[2]==47){
+              #   NAMES47 <<- colnames(HUI)
+              # }
+              
+              
+              
+              if(dim(HUI)[1]>0){
+                if(file.exists("./export/Peaks.txt")){
+                  header_b <- F
                 }else{
-                  try(write.table(longtab,file = fipath,quote = F,row.names = F,col.names = F,append = T,sep = "\t"))
+                  header_b <- T
+                  
+                }
+                write.table(HUI,"./export/Peaks.txt",sep = "\t",row.names = F,quote = F,append = T,col.names  = header_b)
+                
+              }
+            })
+            
+            
+            
+            
+            # print(head(DP))
+            if(cl != "try-error"){
+              DPA <<- DP
+              DP <- DP
+              if(!all(is.na(DP$DL_Scores))){
+                
+                DP$QuantitationType[DP$QuantitationType=="intensity"] <-  "Intensities"
+                fifu <- fifu
+                fifu <- gsub("__","-",fifu)
+                DP <- data.frame(DP)
+                # trans <- DP[,1:(which(colnames(DP) == "Q1")-1)]
+                # info <- DP[,(which(colnames(DP) == "Q1")):dim(DP)[2]]
+                
+                
+                DPmelt <- melt(data.table(DP)[!is.na(DP$DL_Scores),],id.vars=(which(colnames(DP) == "Q1")):dim(DP)[2])
+                data.table::setnames(DPmelt,"value","Intensity")
+                data.table::setnames(DPmelt,"variable","Fragment")
+                
+                # xic <- trans[info$QuantitationType == "XIC",]
+                # int <- trans[info$QuantitationType == "Intensities",]
+                # 
+                AddInf <- unlist(strsplit(fifu,"_"))
+                AddInf[1] <- gsub("^mz","",AddInf[1])
+                AddInf[length(AddInf)] <- gsub(".txt","",AddInf[length(AddInf)])
+                if(length(AddInf)< 6){
+                  AddInf <- c(AddInf,rep(NA,6-length(AddInf)))
+                  
+                }
+                if(length(AddInf)> 6){
+                  AddInf[6] <- paste(AddInf[6:AddInf[length(AddInf)]],collapse = "_")
+                  AddInf <- AddInf[1:6]
+                }
+                # longtab <- c()
+                # for(itr in 1:dim(trans)[2]){
+                #   longtab <- rbind(longtab,cbind(xic[,itr],int[,itr],colnames(trans)[itr],info))
+                # }
+                # melt(trans)
+                # print("longtab naming")
+                # colnames(longtab)[1:3] <- c("XIC","Intensities","Match") 
+                # rownames(longtab) <- NULL
+                # longtab$Intensities[is.na(longtab$Intensities)] <- 0
+                # longtab$XIC[is.na(longtab$XIC)] <- 0
+                # Remove <-longtab$XIC == 0&longtab$Intensities == 0
+                # Remove[is.na(Remove)] <- F
+                # longtab <- longtab[!Remove,]
+                # longtab$QuantitationType <- NULL
+                longtab <- DPmelt
+                MaIn <- matrix(AddInf,dim(longtab)[1],length(AddInf),byrow = T)
+                MaIn <- cbind(MaIn,PeakType,pw,PrecursorRating)
+                longtab$PeakType <- PeakType
+                longtab$PrecursorRating <- PrecursorRating
+                
+                InfInsert <- data.table(t(matrix((AddInf))))
+                longtab[,c("m/z","z","Sequence","Accession","Gene Symbol","Library_ScanID"):={
+                  InfInsert
+                },]
+                if(length(MaIn)>0){
+                  
+                  # colnames(MaIn) <- c("m/z","z","Sequence","Accession","Gene Symbol","Library_ScanID","PeakType","Peak Detection Width","Rating")
+                  # longtab <- cbind(longtab,MaIn)
+                  # longtab <- unique(longtab)
+                  # print("Writing")
+                  # AddInf <- unlist(strsplit(fifu,"_"))
+                  
+                  if(!file.exists(fipath)){
+                    try(write.table(longtab,file = fipath,quote = F,row.names = F,append = F,sep = "\t"))
+                  }else{
+                    try(write.table(longtab,file = fipath,quote = F,row.names = F,col.names = F,append = T,sep = "\t"))
+                  }
                 }
               }
+              
+              
             }
-            
-            
           }
         }
-      }
-      
-    }    
+        
+      }    
     }
     print("Export: longtab")
     try({
