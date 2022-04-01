@@ -46,7 +46,7 @@ print("Version")
 minthresh = 5 # minimal amount of datapoints required over whole run per species per rawfile
 if(length(args1) >0){
   print(args1)
-  #SystemPath <- dirname(dirname(args[1]))
+  SystemPath <- dirname(dirname(args[1]))
   # print(SystemPath)
   
   
@@ -144,7 +144,7 @@ ui <- fluidPage(
   tags$script(inactivity),   
   
   # fluidRow(column(1,icon("jedi","fa-4x")),column(9, titlePanel(paste("Vali - PRM Validation Tool"),version) ),column(2, actionButton("Export", "Export Tables!",style="margin-top:25px;margin-right:5px",icon = icon("file-export"))) ),
-  fluidRow(id="Titlefluidrow",column(1,imageOutput("logo",height="50px")),column(9, align="center",titlePanel(paste("Vali - PRM Validation Tool"),version) ),column(2, actionButton("Export", "Export Tables!",style="margin-top:25px;margin-right:5px",icon = icon("file-export"))) ),
+  fluidRow(id="Titlefluidrow",column(1,imageOutput("logo",height="50px")),column(9, align="center",titlePanel(paste("Vali - PRM Analysis Tool"),version) ),column(2, actionButton("Export", "Export Tables!",style="margin-top:25px;margin-right:5px",icon = icon("file-export"))) ),
   
   
   fluidRow(column(1, actionButton("View", icon = icon("eye"),label = ""),style = "margin-top: 25px"),
@@ -156,7 +156,7 @@ ui <- fluidPage(
   mainPanel(
     tabsetPanel(
       
-      tabPanel("Validation Tool",icon=icon("binoculars") ,
+      tabPanel("Viewer",icon=icon("binoculars") ,
                
                wellPanel(
                  #ROW 2------
@@ -201,7 +201,7 @@ ui <- fluidPage(
                                         fluidRow(column(12,actionButton("Requantify","Requantify",width = "100%"))),
                                         
                                       ),
-                                      fluidRow(column(12,switchInput("supersmooth_I_set","Smoother",value = F),style="margin-top:20px")),
+                                      fluidRow(column(12,switchInput("supersmooth_I_set","Smoother",value = F))),
                                       fluidRow(column(12,switchInput("CenterPeak",label = "Center Peak",width="auto"))),
                                       fluidRow(column(12,switchInput("FocusSpecificFragments",label = "Highlight specific fragments",width="auto"))),
                                       # fluidRow(column(12,switchInput("RTalign",label = "Align RTs",width="auto"))),
@@ -2790,8 +2790,10 @@ server <- function(input, output, session){
     if(any(!is.na(match(dbf,dblistT(dbpath()))))){
       try(PrecursorQuality <- sapply(dbf,function(dbfi){    try(PrecursorQuality<- dbread(dbfi,dbpath())$rating)}))
       PrecursorQuality <- paste(unique(PrecursorQuality),collapse = " & ")
+      PrecursorQuality <- paste("Rating:",unique(PrecursorQuality))
     }
-    return(paste("Rating:",unique(PrecursorQuality)))
+    
+    return(PrecursorQuality)
   })
   
   # Export ------

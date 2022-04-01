@@ -389,7 +389,7 @@ RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2
     setwd(outpath)
     # outpath <<- outpath
     # r <<- r
-    source(paste(SystemPath,"R/EvaluationScript_PRM_sqlite.R",sep = "/"))
+    source(paste(SystemPath,"R/Vali_Functions.R",sep = "/"))
     system.time(RAW <- read.raw(file = r,rawDiag = F))
     # system.time(RAW <- rawrr::readIndex( r)) # rawrr replacement
     
@@ -849,7 +849,6 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
   #   sink("SessionSink.txt",split = T,type="message")
   # }
   #
-  require(rawDiag)
   library(rawrr)
   require(compiler)
   require(data.table)
@@ -861,7 +860,7 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
     setwd(outpath)
     # outpath <<- outpath
     # r <<- r
-    source(paste(SystemPath,"R/EvaluationScript_PRM_sqlite.R",sep = "/"))
+    source(paste(SystemPath,"R/Vali_Functions.R",sep = "/"))
     # colnames(RAW <- read.raw(file = r,rawDiag = F))
     # system.time(RAW <- read.raw(file = r,rawDiag = T))
     # rawrr::installRawFileReaderDLLs()
@@ -900,21 +899,21 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
     ms2scans <- RAW[RAW$MSOrder == "Ms2",] # actual
     
     
-    if(length(descriptionfilter)!=0){
-      if(is.character(descriptionfilter)){
-        foundi <- grepl(descriptionfilter,RAW$ScanDescription)
-        if(any(foundi)){
-          if(InvertSearch){
-            ms2scans <- RAW[RAW$MSOrder == "Ms2"&!foundi,] # Hack Surequant
-            
-          }else{
-            ms2scans <- RAW[RAW$MSOrder == "Ms2"&foundi,] # Hack Surequant
-            
-          }
-        }
-        
-      }
-    }
+    # if(length(descriptionfilter)!=0){
+    #   if(is.character(descriptionfilter)){
+    #     foundi <- grepl(descriptionfilter,RAW$ScanDescription)
+    #     if(any(foundi)){
+    #       if(InvertSearch){
+    #         ms2scans <- RAW[RAW$MSOrder == "Ms2"&!foundi,] # Hack Surequant
+    #         
+    #       }else{
+    #         ms2scans <- RAW[RAW$MSOrder == "Ms2"&foundi,] # Hack Surequant
+    #         
+    #       }
+    #     }
+    #     
+    #   }
+    # }
     
     
     
@@ -1020,8 +1019,8 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
       }
       
       # Generating DIA Windows:
-      DIAwindows_subset <- data.frame(lo = ms2scans_subset$PepMass -(ms2scans_subset$Offset+ms2scans_subset$Iso_Width/2),
-                                      up= ms2scans_subset$PepMass +(ms2scans_subset$Offset+ms2scans_subset$Iso_Width/2))
+      DIAwindows_subset <- data.frame(lo = ms2scans_subset$PrecursorMass -(ms2scans_subset$Offset+ms2scans_subset$Iso_Width/2),
+                                      up= ms2scans_subset$PrecursorMass +(ms2scans_subset$Offset+ms2scans_subset$Iso_Width/2))
       
       cat("\rRead",max(temp_sn),"from",max(sn))
       sapply(1:dim(PrecursorsWindows)[2],function(it){
@@ -1052,7 +1051,10 @@ Rawrr_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=1
         mz <- ms2scans_subset$PrecursorMass
         if(DIA){
           stop("NotImplemented")
-          TimeSelect <- ms2scans_subset$StartTime >= precursorInfo$Start&ms2scans_subset$StartTime<=precursorInfo$End
+          TimeSelect <- ms2scans_subset$startTime >= precursorInfo$Start&ms2scans_subset$StartTime<=precursorInfo$End
+          if(length(TimeSelect)==0){
+            TimeSelect <- rep(T,length(ms2scans_subset$startTime))
+          }
           DIAselect  <- DIAwindows_subset$lo <= ST$mz[it] & DIAwindows_subset$up >= ST$mz[it]
           EVENTS <- ms2scans_subset$scanNumber[DIAselect&TimeSelect]
           table(ms2scans_subset$PrecursorMass[DIAselect&TimeSelect])
@@ -2655,7 +2657,7 @@ ScoringWrapper_parallelized <- function(db,mdModel = NULL,SystemPath = NULL,Para
         library(data.table)
         library(h2o)
         h2o.init()
-        source(paste(SystemPath,"R/EvaluationScript_PRM_sqlite.R",sep = "/"))
+        source(paste(SystemPath,"R/Vali_Functions.R",sep = "/"))
         setwd(wd)
         cat("Working on",itx)
         itx <- itx
