@@ -1,0 +1,3 @@
+mass	AA	TYPE	Defaultname
+8.01419	K	heavy	light
+10.0082	R	heavy	light

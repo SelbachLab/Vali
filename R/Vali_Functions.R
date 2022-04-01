@@ -7767,7 +7767,9 @@ ConvertMSMStoPicky <- function(mspath,IL = NULL,sep = ";",ppm1 = 100,  UseBestSc
     return(path)
   }else{print("Empty Selection, skipping conversion")}
 }
-SilacConverter <-function(ilpath,ShiftTableIni){
+SilacConverter_old <-function(ilpath,ShiftTableIni){
+  # ShiftTableIni <<- ShiftTableIni
+  # ilpath <<- ilpath
   setwd(ilpath)
   if(!file.exists("original/SpectraTable.txt")){
     dir.create("original")
@@ -7777,7 +7779,6 @@ SilacConverter <-function(ilpath,ShiftTableIni){
   }
   st <- read.csv("original/SpectraTable.txt",sep = "\t",stringsAsFactors = F)
   tt <- read.csv("original/TransitionTable.txt",sep = "\t",stringsAsFactors = F)
-  st$Matches <- tolower(st$Matches)
   tt$Matches <- tolower(tt$Matches)
   
   stshifted <- grep("#",st$Sequence,fixed = T)
@@ -7938,6 +7939,207 @@ SilacConverter <-function(ilpath,ShiftTableIni){
   setwd("../")
   
 }
+SilacConverter <-function(ilpath,ShiftTableIni,Defaultname = "light",RemoveOriginalTable = F,ChargeDetection= list(two="\\(2\\+\\)",three="\\(3\\+\\)",four="\\(4\\+\\)",five="\\(5\\+\\)")){
+  ilpath <<- ilpath
+  ShiftTableIni <<- ShiftTableIni
+  RemoveOriginalTable <<- RemoveOriginalTable
+  ChargeDetection <<- ChargeDetection
+  wd <- getwd()
+  setwd(ilpath)
+  if(!file.exists("original/SpectraTable.txt")){
+    dir.create("original")
+    file.rename("SpectraTable.txt","original/SpectraTable.txt")
+    file.rename("TransitionTable.txt","original/TransitionTable.txt")
+    
+  }
+  st <- read.csv("original/SpectraTable.txt",sep = "\t",stringsAsFactors = F)
+  tt <- read.csv("original/TransitionTable.txt",sep = "\t",stringsAsFactors = F)
+  # st$Matches <- tolower(st$Matches)
+  tt$Matches <- tolower(tt$Matches)
+  
+  stshifted <- grep("#",st$Sequence,fixed = T)
+  if(length(stshifted)>0){
+    print("Warning, found shifts")
+    stshiftedSPECID <- st$SpecID[stshifted]
+    
+    st <- st[-stshifted,]
+    ttshifted <- unique(unlist(sapply(stshiftedSPECID,function(x){
+      which(x == tt$SpecID)
+    })))
+    tt <- tt[-ttshifted,]
+  }
+  stOri <- st
+  
+  
+  # 1. Convert Spectra TABLE
+  #ShiftTable <- data.table(mass = c(8.01419),AA = c("K"))
+  #ShiftTable <- data.table(mass = c(4.0251069836),AA = c("K"))
+  
+  ShiftGrepIni <- lapply(ShiftTableIni$AA,gregexpr,st$Sequence)
+  
+  names(ShiftGrepIni) <- ShiftTableIni$AA
+  
+  tt_ShiftOut <- c()
+  st_ShiftOut <- c()
+  for(shifttype in unique(ShiftTableIni$TYPE)){
+    ShiftTable <- ShiftTableIni[ShiftTableIni$TYPE == shifttype,]
+    ShiftGrep <- ShiftGrepIni[ShiftTableIni$TYPE == shifttype]
+    
+    ttshift <- tt
+    st <- stOri
+    for(x in 1:dim(st)[1]){
+      tempx <- st[x,]
+      cat("\r",x)
+      grepResults   <- lapply(ShiftGrep,function(y){y[[x]][y[[x]] != -1]})
+      ShiftMass     <- sum(lengths(grepResults)*ShiftTable$mass,na.rm = T)
+      ShiftMZ       <- ShiftMass/tempx$Charge
+      st$mz[x]      <- tempx$mz+ShiftMZ
+      SHIFTS <- ShiftTableIni$TYPE[lengths(grepResults)>0]
+      if(length(SHIFTS) > 0){
+        st$Sequence[x] <- paste(st$Sequence[x],paste(SHIFTS,collapse = "",sep = ""),sep = "#")
+        st$Modified_sequence[x] <- gsub("_$",paste("#",SHIFTS,"_",collapse = "",sep = ""),st$Modified_sequence[x])
+      }
+      # Correct TransitionTABLE
+      se <- tempx$Sequence
+      forw <- seq(1:nchar(se))
+      revw <- rev(forw)
+      Kpos <- ShiftGrep$K[[x]]
+      Kpos <- Kpos[Kpos != -1]
+      Rpos <- ShiftGrep$R[[x]]
+      Rpos <- Rpos[Rpos != -1]
+      
+      Pos <- lapply(ShiftGrep,function(y){y[[x]]})
+      posvec <- revw
+      FragmentShift <- function(posvec,ShiftTable,reverse = F){
+        sapply(1:length(posvec),function(i){
+          
+          
+          LE <- posvec[1:i]
+          LEmapped <- lapply(Pos,function(y){
+            y <<- y
+            # if(reverse){
+            # y[y!=-1] <- nchar(se)-y[y!=-1]+1
+            # }
+            m <- match(LE,y)
+            length(m[!is.na(m)])
+          })
+          SU <- lapply(1:dim(ShiftTable)[1],function(x){
+            sum(LEmapped[[x]]*ShiftTable$mass[x],na.rm = T)
+          })
+          return(sum(unlist(SU),na.rm = T))
+          
+        })
+        
+        
+      }
+      
+      abcshift <- FragmentShift(forw,ShiftTable)
+      
+      xyzshift <- FragmentShift(revw,ShiftTable,reverse = T)
+      
+      abc <- lapply(c("a","b","c"),function(x){
+        c(paste(x,1:nchar(se),sep = ""))
+      })
+      xyz <- lapply(c("x","y","z"),function(x){
+        c(paste(x,1:nchar(se),sep = ""))
+      })
+      
+      #xyz ions
+      ttshiftx <- ttshift[ttshift$SpecID == tempx$SpecID,]
+      FragmentShift <- sapply(ttshiftx$Matches,function(y){
+        y <<- y
+        y <- strsplitslot(y,1,"[-(]")
+        typeselect <- sapply(c("^a|^b|^c","^x|^y|^z"),function(x){
+          grep(x,y)
+        })
+        shift1 = 0
+        if(lengths(typeselect)[1]==1){
+          yl <- lapply(abc,function(z){which(z==y)})
+          if(all(lengths(yl) == 0)){
+            shift1 = 0
+          }else{
+            yl <- unlist(yl[lengths(yl) != 0])
+            shift1 <- abcshift[yl]
+          }
+        }
+        if(lengths(typeselect)[2]==1){
+          yl <- lapply(xyz,function(z){which(z==y)})
+          if(all(lengths(yl) == 0)){
+            shift1 = 0
+          }else{
+            yl <- unlist(yl[lengths(yl) != 0])
+            shift1 <- xyzshift[yl]
+          }
+        }
+        return(shift1)
+      })
+      ChargeDetection <<- ChargeDetection
+      charge <- sapply(ttshiftx$Matches,function(x){
+        HUI <- which(sapply(ChargeDetection,function(y){any(grepl(y,x))}))
+        if(length(HUI)==0){return(1)}else{return(HUI+1)}
+      })
+      # ttshiftx <<- ttshiftx
+      # gr <- regexec(ChargeDetection,ttshiftx$Matches)
+      # unlist(gr)
+      # charge <- sapply(1:length(gr),function(g){
+      #   g <<- g
+      #   y <- gr[[g]]
+      #   y <<- y
+      #   y[is.na(y)] <- -1
+      #   if(y!= "-1"){
+      #     return(as.numeric(substr(ttshiftx$Matches[g],(y+attributes(y)$match.length-1),(y+attributes(y)$match.length-1))))
+      #   }else{
+      #     return(1)
+      #   }
+      # })
+      if(any(is.na(charge))){
+        warning("Charge could not be detected, setted to 1.")
+        
+      }
+      charge[is.na(charge)] <- 1
+      
+      ttshift$Masses[ttshift$SpecID == tempx$SpecID] <- ttshiftx$Masses+FragmentShift/charge
+    }
+    try({
+      barplot(table(round(ttshift$Masses-c(tt$Masses),2)),las = 2)
+    })
+    
+    st$SpecID <- st$SpecID +max(st$SpecID)
+    ttshift$SpecID <- ttshift$SpecID+max(ttshift$SpecID)
+    
+    tt_ShiftOut <- rbind(tt_ShiftOut,ttshift)
+    st_ShiftOut <- rbind(st_ShiftOut,st) 
+    # stop()
+    
+  }
+  
+  # stop()
+  # OutputTable --------
+  tt$Shift <- 0
+  tt_ShiftOut$Shift <- tt_ShiftOut$Masses-tt$Masses
+  if(!RemoveOriginalTable){
+    ttall <- rbind(tt,tt_ShiftOut)
+    stOri$Modified_sequence[x] <- gsub("_$",paste("#",Defaultname,"_",collapse = "",sep = ""),stOri$Modified_sequence[x])
+    
+    stOri$Sequence <- paste(stOri$Sequence,Defaultname,sep = "#")
+    
+    stall <- rbind(stOri,st_ShiftOut)
+  }else{
+    stall <- st_ShiftOut
+    ttall <- tt_ShiftOut
+  }
+  
+  
+  # stop()
+  # dir.create("original")
+  # setwd("Label_Added")
+  write.table(stall,"SpectraTable.txt",sep = "\t",quote = F,row.names = F)
+  write.table(ttall,"TransitionTable.txt",sep = "\t",quote = F,row.names = F)
+  PATH <- getwd()
+  setwd(wd)
+  return(PATH)
+}
+
 #ShiftTableIni <- data.table(mass = c(8.01419,10.0082,-8.01419,-10.0082),AA = c("K","R"),TYPE = c("heavy","heavy","light","light"))
 
 # Transfers Identification between PickyAnalyzer Databases

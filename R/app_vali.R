@@ -5,15 +5,12 @@ library(data.table)
 library(parallel)
 library(gtools)
 library(h2o)# Machine Learning module, for Scoring
-# library(rawDiag)# RawFile Reader https://github.com/fgcz/rawDiag
 library(Peptides)# for MS1, currently not implemented
 library(enviPat)# for isotope pattern distribution calculation used in MS1 assessment
 library(shinyWidgets)
-require(rawDiag)
-require(compiler)
 library(tcltk)
+require(rawDiag)
 library(rawrr)
-
 
 options(warn=-1)
 
@@ -135,6 +132,8 @@ ui <- fluidPage(
            font-size: 40px;
            font-style: bold;
           }',
+         '#Titlefluidrow {vertical-align: middle;align-items: center;}'
+         ,
          ".shiny-notification {
               font-size: xx-small;
 
@@ -144,7 +143,9 @@ ui <- fluidPage(
   #tags$head(tags$style(".shiny-progress {top: 50% !important;left: 50% !important;margin-top: -100px !important;margin-left: -250px !important; color: blue;font-size: 20px;font-style: italic;}")),
   tags$script(inactivity),   
   
-  fluidRow(column(1,icon("jedi","fa-4x")),column(9, titlePanel(paste("Vali - PRM Validation Tool"),version) ),column(2, actionButton("Export", "Export Tables!",style="margin-top:25px;margin-right:5px",icon = icon("file-export"))) ),
+  # fluidRow(column(1,icon("jedi","fa-4x")),column(9, titlePanel(paste("Vali - PRM Validation Tool"),version) ),column(2, actionButton("Export", "Export Tables!",style="margin-top:25px;margin-right:5px",icon = icon("file-export"))) ),
+  fluidRow(id="Titlefluidrow",column(1,imageOutput("logo",height="50px")),column(9, align="center",titlePanel(paste("Vali - PRM Validation Tool"),version) ),column(2, actionButton("Export", "Export Tables!",style="margin-top:25px;margin-right:5px",icon = icon("file-export"))) ),
+  
   
   fluidRow(column(1, actionButton("View", icon = icon("eye"),label = ""),style = "margin-top: 25px"),
            column(7,uiOutput("Sessions")),
@@ -154,6 +155,7 @@ ui <- fluidPage(
   # Paths
   mainPanel(
     tabsetPanel(
+      
       tabPanel("Validation Tool",icon=icon("binoculars") ,
                
                wellPanel(
@@ -376,10 +378,17 @@ ui <- fluidPage(
                    conditionalPanel("false",
                                     fluidRow(column(2,actionButton("MaxQuantButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "MaxQuant","MaxQuant txt",value = maxquant,width = '100%')))
                    ),# Protein Selecter
-                   fluidRow(column(2,actionButton("inclusionListButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "inclusionList","Picky Export Folder",value = inclusionList,width = '100%'))) ,# Protein Selecter
+                   fluidRow(column(2,actionButton("inclusionListButton","Browse",icon=icon("folder"),style="margin-top:25px")),column(10,textInput(inputId = "inclusionList","Picky Export Folder / Library",value = inclusionList,width = '100%'))) ,# Protein Selecter
                    
                    actionButton("saveSessionPaths",icon = icon("bed"),label = "Save Paths",style="margin-bottom=25px")),
                  # fluidRow(column(1)),
+                 wellPanel(
+                   # helpText("MS2 Description Filter"),
+                   fluidRow(column(6,textInput("ScanStringFilter","MS2 Description Filter",value = NULL)),
+                            column(6,switchInput("ScanStringFilterInvert","Exclude Selection",value = T))
+                            
+                            
+                   )),
                  wellPanel(
                    fluidRow(
                      column(2,checkboxInput("DIA","DIA",FALSE)),
@@ -411,6 +420,28 @@ ui <- fluidPage(
                
                
       ),
+      tabPanel("Library Conversion",icon=icon("database"),
+               wellPanel(
+                 wellPanel(
+                   helpText("msms.txt to Picky library format"),
+                   
+                   fluidRow(column(2,actionButton("MSMS_Conversion_Browse","Browse",icon=icon("folder"),style="margin-top:25px")),
+                            column(8,textInput(inputId = "MSMS_Conversion_Path","msms.txt",value = mainPath,width = '100%')),
+                            column(2,actionButton("ConvertButton","Convert",icon=icon("rocket"),style="margin-top:25px")),) # Protein Selecter
+                   
+                 ),
+                 wellPanel(
+                   helpText("Expanding Library"),
+                   fluidRow(column(2,actionButton("Library_AdjustmentsBUTTON","Browse",icon=icon("folder"),style="margin-top:25px")),
+                            column(8,textInput(inputId = "Library_MassShift_Path","Path to SpectraTable.txt",value = mainPath,width = '100%')),
+                            column(2,actionButton("ApplyMassShifts","Convert",icon=icon("rocket"),style="margin-top:25px"))), # Protein Selecter
+                  wellPanel(
+                   fluidRow(column(8,dataTableOutput('MassShiftInitTable') ),column(4,actionButton("AlterMassShiftInitTable","Modify table")))
+                  )
+                 )
+              )
+      )
+      ,
       tabPanel("Advanced Settings",icon=icon("skull-crossbones"),
                # sliderInput(inputId = "PeakWidth",label = "Peak Detection Width",min = 0,max = 40,step = 1,value = inputListStdSet$PeakWidth),
                conditionalPanel("false",
@@ -422,13 +453,7 @@ ui <- fluidPage(
                  numericInput("MaxPeakWidth","MaxPeakWidth [min]",min=0,value=1/60*30)
                )
                ,
-               wellPanel(
-                 helpText("MS2 Description Filter"),
-                 fluidRow(column(6,textInput("ScanStringFilter","MS2 Description Filter",value = NULL)),
-                          column(6,switchInput("ScanStringFilterInvert","Exclude Selection",value = T))
-                          
-                          
-                 )),
+               
                switchInput("EnableNeighborZeroImputation","NeighbourZeroImputation",value = T),
                sliderInput(inputId = "RetentionTimeWindow",label = "Peak Window",min = 0,max = 10,step = 0.1,value = inputListStdSet$RetentionTimeWindow),
                wellPanel(
@@ -454,7 +479,7 @@ ui <- fluidPage(
 server <- function(input, output, session){
   ## Removes Peaks from a m/z
   observeEvent(c(input$reset,input$Requantify_Priority),{
-    print("Reseting")
+    print("Resetting")
     DBL <- dblistT(dbpath())
     db <- dbConnect(SQLite(),dbpath())
     dbname <- dbtaName(AnalyzedTransitions(),dbpath())
@@ -557,6 +582,10 @@ server <- function(input, output, session){
     }
     
     Paths
+  })
+  output$logo <- renderImage({
+    fi <- paste(SystemPath,"Vali_Logo.png",sep = "/")
+    list(src=fi,width = 50,heigth=50)
   })
   output$Sessions <- renderUI({
     
@@ -2622,6 +2651,15 @@ server <- function(input, output, session){
   observeEvent(input$mainPathButton,{
     BrowseFun("mainPath",session = session)
   })
+  observeEvent(input$MSMS_Conversion_Browse,{
+    BrowseFun("MSMS_Conversion_Path",session = session)
+  })
+  observeEvent(input$Library_AdjustmentsBUTTON,{
+    # showNotification("Not implemented at the moment. Use SilacConverter function.")
+    BrowseFun("Library_MassShift_Path",session = session)
+  })
+  
+  
   observeEvent(input$MaxQuantButton,{
     BrowseFun("MaxQuant",session = session)
   })
@@ -2629,6 +2667,36 @@ server <- function(input, output, session){
   observeEvent(input$inclusionListButton,{
     BrowseFun("inclusionList",session = session)
     
+  })
+  observeEvent(input$ConvertButton,{
+    if(grepl("msms.txt$",basename(input$MSMS_Conversion_Path))){
+      if(file.exists(input$MSMS_Conversion_Path)){
+        progress_Conversion <- Progress$new(session)
+        progress_Conversion$set(message = 'MSMS Conversion',
+                              detail = "Starting")
+        on.exit(progress_Conversion$close())
+        
+        ipp <<- input$MSMS_Conversion_Path
+        print("DOING SOEMTHING")
+        ConvertMSMStoPicky(ipp)
+        progress_Conversion$set(message = 'MSMS Conversion',
+                                detail = "Finished")   
+        li <- list.files(dirname(input$MSMS_Conversion_Path))
+        if(any(li=="SpectraTable.txt")&any(li=="TransitionTable.txt")){
+          showNotification("MSMS Conversion successful!")
+          
+        }else{
+          showNotification("Problem occured during MSMS Conversion!")
+          
+        }
+        
+      }else{
+        showNotification("File does not exist.")
+        
+      }
+    }else{
+      showNotification("No msms.txt file selected. Please check the naming of the selected file.")
+    }
   })
   ### Save Settings for later #-----------
   
@@ -3099,53 +3167,111 @@ server <- function(input, output, session){
         
       }    
     }
-    print("Export: longtab")
-    try({
-      # longtab <- fread(fipath,sep = "\t",stringsAsFactors = F)
-      # # se <- c("XIC","Intensities","Peaks")
-      # # print("subset1")
-      # longtab$Gene.Symbol[is.na(longtab$Gene.Symbol)] <- "unknown"
-      # longtab$Accession[is.na(longtab$Accession)] <- "unknown"
-      # 
-      # longtab[,max(Sequence),.(Sequence,`Gene Symbol`,Accession)]
-      # try({
-      #   CondenseRaw <- CondenseNames(uniRaw)
-      #   CondenseRaw <- CondenseRaw[match(LoTab$rawfile,uniRaw)]
-      # },silent = T)
-      # 
-      # 
-      # try(write.table(LoTab,file = "./export/ProteinList.txt",quote = F,row.names = F,col.names = F,append = T,sep = "\t"))
-      # # Calculate Ratios:
-      # try({
-      #   progress_Export$set(message = "Working on ratio estimation.",
-      #                          detail = paste(length(ID),"Processes running."),value = 0)
-      #   
-      #   peakspath <- "./export/Peaks.txt"
-      #   if(file.exists(peakspath)){
-      #     peaks <- fread(peakspath,sep ="\t",stringsAsFactors = F)
-      #     peaks[,Precursor := gsub("_.*$","",precursor_ID)]
-      #     peaks[,PrecursorInfo := substr(precursor_ID,gregexpr("_",precursor_ID)[[1]][1],nchar(precursor_ID))]
-      #     peaks[,Sequence:= strsplit(precursor_ID,"_")[[1]][3],precursor_ID]
-      #     peaks[,Label:= strsplit(Sequence,"#")[[1]][2],precursor_ID]
-      #     peaks[,Sequence:= strsplit(Sequence,"#")[[1]][1],precursor_ID]
-      #     
-      #     peaks[,Charge:= strsplit(precursor_ID,"_")[[1]][[2]],precursor_ID]
-      #     peaks[,Gene:= strsplit(precursor_ID,"_")[[1]][[5]],precursor_ID]
-      #     
-      #     if(any(is.na(peaks$mz))){
-      #       peaks$mz <- as.numeric(gsub("^mz","",peaks$Precursor))
-      #     }
-      #     peaks <- peaks[!is.na(value),]
-      #     Ratios <- PeaksProcessingLM(peaks,progressObj = progress_Export)
-      #     fwrite(Ratios,"./export/Ratios.txt",sep = "\t")
-      #   }
-      #   
-      # })
-    })
+    # # print("Export: longtab")
+    # try({
+    #   # longtab <- fread(fipath,sep = "\t",stringsAsFactors = F)
+    #   # # se <- c("XIC","Intensities","Peaks")
+    #   # # print("subset1")
+    #   # longtab$Gene.Symbol[is.na(longtab$Gene.Symbol)] <- "unknown"
+    #   # longtab$Accession[is.na(longtab$Accession)] <- "unknown"
+    #   # 
+    #   # longtab[,max(Sequence),.(Sequence,`Gene Symbol`,Accession)]
+    #   # try({
+    #   #   CondenseRaw <- CondenseNames(uniRaw)
+    #   #   CondenseRaw <- CondenseRaw[match(LoTab$rawfile,uniRaw)]
+    #   # },silent = T)
+    #   # 
+    #   # 
+    #   # try(write.table(LoTab,file = "./export/ProteinList.txt",quote = F,row.names = F,col.names = F,append = T,sep = "\t"))
+    #   # # Calculate Ratios:
+    #   # try({
+    #   #   progress_Export$set(message = "Working on ratio estimation.",
+    #   #                          detail = paste(length(ID),"Processes running."),value = 0)
+    #   #   
+    #   #   peakspath <- "./export/Peaks.txt"
+    #   #   if(file.exists(peakspath)){
+    #   #     peaks <- fread(peakspath,sep ="\t",stringsAsFactors = F)
+    #   #     peaks[,Precursor := gsub("_.*$","",precursor_ID)]
+    #   #     peaks[,PrecursorInfo := substr(precursor_ID,gregexpr("_",precursor_ID)[[1]][1],nchar(precursor_ID))]
+    #   #     peaks[,Sequence:= strsplit(precursor_ID,"_")[[1]][3],precursor_ID]
+    #   #     peaks[,Label:= strsplit(Sequence,"#")[[1]][2],precursor_ID]
+    #   #     peaks[,Sequence:= strsplit(Sequence,"#")[[1]][1],precursor_ID]
+    #   #     
+    #   #     peaks[,Charge:= strsplit(precursor_ID,"_")[[1]][[2]],precursor_ID]
+    #   #     peaks[,Gene:= strsplit(precursor_ID,"_")[[1]][[5]],precursor_ID]
+    #   #     
+    #   #     if(any(is.na(peaks$mz))){
+    #   #       peaks$mz <- as.numeric(gsub("^mz","",peaks$Precursor))
+    #   #     }
+    #   #     peaks <- peaks[!is.na(value),]
+    #   #     Ratios <- PeaksProcessingLM(peaks,progressObj = progress_Export)
+    #   #     fwrite(Ratios,"./export/Ratios.txt",sep = "\t")
+    #   #   }
+    #   #   
+    #   # })
+    # })
     showNotification(paste("Finished Export. You can find the tables in the export folder in your experiment location.\n",IPMAINPATH,sep = ""),duration = NULL,type = "message")
+  })         
+
+  # MassShift Conversion ###########
+  observeEvent(input$AlterMassShiftInitTable,{
+    na <- paste(SystemPath,"R","MassShifts.txt",sep = "/")
+    if(!file.exists(na)){
+      ShiftTableIni <- data.table(mass = c(8.01419,10.0082),AA = c("K","R"),TYPE = c("heavy","heavy"),Defaultname="light")
+      fwrite(ShiftTableIni,na,sep = "\t")
+    }else{
+      ShiftTableIni <- fread(na,sep = "\t")
+    }
+    ShiftTableIni2 <- fix(ShiftTableIni)
+    ShiftTableIni2$mass <- as.numeric(ShiftTableIni2$mass)
+    ShiftTableIni2 <- ShiftTableIni2[!is.na(mass),]
+    if(is.data.frame(ShiftTableIni2)){
+      fwrite(ShiftTableIni2,na,sep = "\t")
+      MassShiftInitTable$ShiftTableIni <- ShiftTableIni2
+      
+    }
   })
-  
-  
+  MassShiftInitTable <- reactiveValues(ShiftTableIni={
+    na <- paste(SystemPath,"R","MassShifts.txt",sep = "/")
+    if(!file.exists(na)){
+      ShiftTableIni <- data.table(mass = c(8.01419,10.0082),AA = c("K","R"),TYPE = c("heavy","heavy"),Defaultname="light")
+      fwrite(ShiftTableIni,na,sep = "\t")
+    }else{
+      ShiftTableIni <- fread(na,sep = "\t")
+    }
+    ShiftTableIni
+  })
+  output$MassShiftInitTable <- renderDataTable(
+                                               {
+                                                 MassShiftInitTable$ShiftTableIni
+                                               }
+                                 )
+  observeEvent(input$ApplyMassShifts,{
+    if(!is.na(file.info(input$Library_MassShift_Path)$isdir)){
+      if(file.info(input$Library_MassShift_Path)$isdir){
+        SpectraTableDirectory <- dirname(input$Library_MassShift_Path)
+      }else{
+        SpectraTableDirectory <-  input$Library_MassShift_Path
+      }
+      progress <- Progress$new(session)
+      on.exit(progress$close())
+      progress$set(message = 'Applying Mass Shifts',
+                   detail = "")
+      try({
+        print("Starting SilacConverter")
+        hu <- SilacConverter(SpectraTableDirectory,MassShiftInitTable$ShiftTableIni)
+        print("Finished SilacConverter")
+        
+      })
+      if(!is.na(file.info(paste(hu,"original",sep = "/"))$isdir)){
+        showNotification(paste("Library converted "),hu)
+      }else{
+        showNotification(paste("Something may have not worked."),hu,type = "warning")
+        
+      }
+      # MassShiftInitTable <- list(ShiftTableIni=ShiftTableIni2)
+    }
+  })
   
 }
 
