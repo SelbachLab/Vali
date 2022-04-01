@@ -185,18 +185,22 @@ ui <- fluidPage(
                                     ),
                                     wellPanel(
                                       wellPanel(
-                                      fluidRow(column(6,mainPanel(h5("Peak Assignment"),width = "100%"))),#column(8,checkboxInput("allshifts","All m/z",T))),
+                                      fluidRow(column(6,mainPanel(h5("Peak Assignment"),width = "100%"),style = "margin-top: -10px")),#column(8,checkboxInput("allshifts","All m/z",T))),
                                       
                                       fluidRow(column(6,actionButton("ManualSetPeak","Set",style="background-color: #00b19c;color: #fff",width = "100%")),column(6,actionButton("RemovePeak","Remove",width = "100%",style="background-color: #ff2600;color: #fff"))),
-                                      fluidRow(column(12,actionButton("reset", "Reset",style="background-color: #005493;color: #fff",width = "100%"),style = "margin-top: 10px")),
+                                      fluidRow(column(12,actionButton("reset", "Reset",style="background-color: #005493;color: #fff",width = "100%"),style = "margin-top: 5px")),
                                       
                                       conditionalPanel("false",
                                                        fluidRow(column(12,actionButton("SetSearchArea","Area Search",width = "100%",style="background-color: #2e6da4;color: #fff"),style = "margin-top: 5px"))
                                                        
                                       )
                                       ),
-                                      fluidRow(column(6,actionButton("Requantify","Requantify"),style = "margin-top: 10px")),
-                                      fluidRow(column(12,selectInput("Requantify_Priority","Peak Priority",c("DL_Scores","Intensity","Light","Heavy","none")),style = "margin-top: 10px")),
+                                      wellPanel(
+                                        fluidRow(column(12,selectInput("Requantify_Priority","Requantify Priority",c("DL_Scores","Intensity","Light","Heavy","none")))),
+                                        
+                                        fluidRow(column(12,actionButton("Requantify","Requantify",width = "100%"))),
+                                        
+                                      ),
                                       fluidRow(column(12,switchInput("supersmooth_I_set","Smoother",value = F),style="margin-top:20px")),
                                       fluidRow(column(12,switchInput("CenterPeak",label = "Center Peak",width="auto"))),
                                       fluidRow(column(12,switchInput("FocusSpecificFragments",label = "Highlight specific fragments",width="auto"))),
