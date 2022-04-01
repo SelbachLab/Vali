@@ -6523,187 +6523,200 @@ DetectPeakWrapper <- function(
       tempu
     })
     DPDT <<- rbindlist(DPlistDT)
-    # Deciding on precursors per rawfile, which need to be requantified
-    Reassign <- DPDT[,{
-      temp <- .SD
-      temp$FDR[is.na(temp$FDR)] <- 10
+    DoubleCheckPreviousReassignments <- unique(DPDT$Precursor)
+    dbt <- dblistT(dbp)
+    DoubleCheckPreviousReassignmentsName <- gsub("^mz","Reassigned",DoubleCheckPreviousReassignments)
+    NotProcessed <- setdiff(DoubleCheckPreviousReassignmentsName,dbt)
+    if(length(NotProcessed)>0|Reanalysis){
+      for(ifile in NotProcessed){
+        dbwrite(as.data.frame(ifile),name = ifile,db = dbp,overwrite=T)
+      }
       
-      if(Requantify_Priority=="DL_Scores"){
-        sel <- temp$DL_Scores==max(temp$DL_Scores,na.rm = T)
-      }
-      if(Requantify_Priority=="FDR"){
-        sel <- FDR==max(FDR,na.rm = T)
-      }
-      if(Requantify_Priority=="Intensity"){
-        MaxFun <- as.numeric(apply(tempSelect <- temp[QuantitationType=="Intensities",],1,function(x){max(as.numeric(x)[1:(which(names(temp)=="Q1")-1)],na.rm = T)}))
-        sel <- Precursor==tempSelect$Precursor[MaxFun==max(MaxFun)]
+      Reassign <- DPDT[,{
+        temp <- .SD
+        temp$FDR[is.na(temp$FDR)] <- 10
         
-      }
-      if(Requantify_Priority=="Light"){
+        if(Requantify_Priority=="DL_Scores"){
+          sel <- temp$DL_Scores==max(temp$DL_Scores,na.rm = T)
+        }
+        if(Requantify_Priority=="FDR"){
+          sel <- FDR==max(FDR,na.rm = T)
+        }
+        if(Requantify_Priority=="Intensity"){
+          MaxFun <- as.numeric(apply(tempSelect <- temp[QuantitationType=="Intensities",],1,function(x){max(as.numeric(x)[1:(which(names(temp)=="Q1")-1)],na.rm = T)}))
+          sel <- Precursor==tempSelect$Precursor[MaxFun==max(MaxFun)]
+          
+        }
+        if(Requantify_Priority=="Light"){
+          
+          mz <- as.numeric(gsub("mz","",sapply(strsplit(temp$Precursor,"_"),"[[",1)))
+          sel <- mz==min(mz)
+        }
+        if(Requantify_Priority=="Heavy"){
+          mz <- as.numeric(gsub("mz","",sapply(strsplit(temp$Precursor,"_"),"[[",1)))
+          sel <- mz==max(mz)
+        }
+        Quantiles <- temp[sel,.(Q1,Q2)]
         
-        mz <- as.numeric(gsub("mz","",sapply(strsplit(temp$Precursor,"_"),"[[",1)))
-        sel <- mz==min(mz)
-      }
-      if(Requantify_Priority=="Heavy"){
-        mz <- as.numeric(gsub("mz","",sapply(strsplit(temp$Precursor,"_"),"[[",1)))
-        sel <- mz==max(mz)
-      }
-      Quantiles <- temp[sel,.(Q1,Q2)]
-      
-      Quantiles <- unique(Quantiles)
-      
-      if(all(is.na(Quantiles))){
-        # print("NULL")
-        print(paste("NULL for", .BY$rawfile))
-        Quantiles <- NULL
-      }else{
-        # print("FUN")
-        NeedsAnUpdate <- temp[sel,.(Precursor)]
-        Quantiles <- Quantiles
-        Precursor <- NeedsAnUpdate$Precursor
-        Quantiles <- cbind(Quantiles,Precursor)
         Quantiles <- unique(Quantiles)
-      }
-      # print(length(Quantiles))
-      # print(Quantiles)
-      as.list(Quantiles)
-      
-    },.(rawfile)]
-    
-    Reassign <- unique(Reassign)
-    Reassign <- Reassign[!is.na(Reassign$Precursor),]
-    if(dim(Reassign)[1]>0){
-      
-      sapply(1:dim(Reassign)[1],function(its){
-        tempReassing <- Reassign[its,]
-        gr <- tempReassing$Precursor
         
-        itlist <- which(names(ana)!=gr)
-        if(length(itlist)>0){
-          for(it in itlist){
-            tempana <- ana[[it]]
-            dbtaNameVec <- dbtaName(ana,dbp)[it]
-            DP <- dbread(dbtaNameVec,dbp)
-            DP <- data.table(DP,stringsAsFactors=F)
-            tempana <- data.table(tempana,stringsAsFactors=F)
-            Corrected <- tempana[!is.na(match(rawfile,tempReassing$rawfile)),{
-              # cat("\r",.GRP,.BY$rawfile)
-              tempana_rf <- .SD
-              grp <- .BY
-              if(dim(tempana_rf)[1]==0){
-                OutTable <- NULL
-              }else{
-                # stop()
-                # Extract transitions
-                transidf <- tempana_rf[,.SD,.SDcols=1:(which(names(tempana) =="charge")-1)]
-                transidf <- as.data.frame(transidf)
-                trans <<- SplitTransitionInfo(tempana_rf)
-                trans$Transitions[trans$Transitions==-1]<-0
-                # Specify RT range
-                rangeinit <<- tempReassing[rawfile==grp$rawfile,.(Q1,Q2)]
-                if(dim(rangeinit)[1]>0){
-                  
-                  RANGE <- range(rangeinit)
-                  # print("DetectPeak Start")
-                  PeakDetected <- list(quantile=c(NA,NA),XIC=NA,intensity=NA)
-                  try({PeakDetected <- DetectPeak_v2(rt_pep = mean(RANGE),
-                                                     Peakwidth = diff(RANGE),
-                                                     transitions = trans$Transitions,
-                                                     RT = trans$Info$RT_Used,
-                                                     presetQuantiles = RANGE,
-                                                     FDR=NULL,
-                                                     scores=trans$Info$DL_Scores,
-                                                     MinPeakWidth = MinPeakWidth,
-                                                     MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set,
-                                                     Score=tempana_rf$DL_Scores,
-                                                     Identifier = grp$rawfile,
-                                                     info=trans$Info
-                                                     
-                  )})#$quantile
-                  temp <- trans$Info
-                  infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
-                  infoquantile <- infoquantileParser(infoquantile)
-                  infoquantile <-rbind(infoquantile,infoquantile)
-                  infoquantile <- apply(infoquantile,2,as.double)
-                  
-                  PeakDetected$all <- NULL     
-                  QuantitationType <- c("XIC","Intensities")
-                  Q <- PeakDetected$quantile
-                  if(length(Q) == 0){
-                    Q = as.double(c(NA,NA))
-                  }
-                  
-                  IntensityStuff <- rbind(PeakDetected$XIC,PeakDetected$intensity)
-                  IntensityStuff <- data.frame(IntensityStuff)
-                  
-                  if(AlignedRTs){
-                    Qori <- tempana_rf$RT2[match(Q,tempana_rf$RTalign)]
-                    IntensityStuff$Q1 <-Qori[1]
-                    IntensityStuff$Q2 <-Qori[2]
-                    IntensityStuff$Q1align <- Q[1]
-                    IntensityStuff$Q2align <- Q[2]
-                  }else{
-                    QAlign <- tempana_rf$RTalign[match(Q,tempana_rf$RT2)]
-                    if(length(QAlign)==0){
-                      QAlign <- Q
+        if(all(is.na(Quantiles))){
+          # print("NULL")
+          print(paste("NULL for", .BY$rawfile))
+          Quantiles <- NULL
+        }else{
+          # print("FUN")
+          NeedsAnUpdate <- temp[sel,.(Precursor)]
+          Quantiles <- Quantiles
+          Precursor <- NeedsAnUpdate$Precursor
+          Quantiles <- cbind(Quantiles,Precursor)
+          Quantiles <- unique(Quantiles)
+        }
+        # print(length(Quantiles))
+        # print(Quantiles)
+        as.list(Quantiles)
+        
+      },.(rawfile)]
+      
+      Reassign <- unique(Reassign)
+      Reassign <- Reassign[!is.na(Reassign$Precursor),]
+      if(dim(Reassign)[1]>0){
+        
+        sapply(1:dim(Reassign)[1],function(its){
+          tempReassing <- Reassign[its,]
+          gr <- tempReassing$Precursor
+          
+          itlist <- which(names(ana)!=gr)
+          if(length(itlist)>0){
+            for(it in itlist){
+              tempana <- ana[[it]]
+              dbtaNameVec <- dbtaName(ana,dbp)[it]
+              DP <- dbread(dbtaNameVec,dbp)
+              DP <- data.table(DP,stringsAsFactors=F)
+              tempana <- data.table(tempana,stringsAsFactors=F)
+              Corrected <- tempana[!is.na(match(rawfile,tempReassing$rawfile)),{
+                # cat("\r",.GRP,.BY$rawfile)
+                tempana_rf <- .SD
+                grp <- .BY
+                if(dim(tempana_rf)[1]==0){
+                  OutTable <- NULL
+                }else{
+                  # stop()
+                  # Extract transitions
+                  transidf <- tempana_rf[,.SD,.SDcols=1:(which(names(tempana) =="charge")-1)]
+                  transidf <- as.data.frame(transidf)
+                  trans <<- SplitTransitionInfo(tempana_rf)
+                  trans$Transitions[trans$Transitions==-1]<-0
+                  # Specify RT range
+                  rangeinit <<- tempReassing[rawfile==grp$rawfile,.(Q1,Q2)]
+                  if(dim(rangeinit)[1]>0){
+                    
+                    RANGE <- range(rangeinit)
+                    # print("DetectPeak Start")
+                    PeakDetected <- list(quantile=c(NA,NA),XIC=NA,intensity=NA)
+                    try({PeakDetected <- DetectPeak_v2(rt_pep = mean(RANGE),
+                                                       Peakwidth = diff(RANGE),
+                                                       transitions = trans$Transitions,
+                                                       RT = trans$Info$RT_Used,
+                                                       presetQuantiles = RANGE,
+                                                       FDR=NULL,
+                                                       scores=trans$Info$DL_Scores,
+                                                       MinPeakWidth = MinPeakWidth,
+                                                       MaxPeakWidth = MaxPeakWidth,supersmooth_I_set  = supersmooth_I_set,supersmooth_bw_set = supersmooth_bw_set,
+                                                       Score=tempana_rf$DL_Scores,
+                                                       Identifier = grp$rawfile,
+                                                       info=trans$Info
+                                                       
+                    )})#$quantile
+                    temp <- trans$Info
+                    infoquantile <- temp[temp$RT_min>= min(PeakDetected$quantile,na.rm = T)&temp$RT_min<=max(PeakDetected$quantile,na.rm= T),]
+                    infoquantile <- infoquantileParser(infoquantile)
+                    infoquantile <-rbind(infoquantile,infoquantile)
+                    infoquantile <- apply(infoquantile,2,as.double)
+                    
+                    PeakDetected$all <- NULL     
+                    QuantitationType <- c("XIC","Intensities")
+                    Q <- PeakDetected$quantile
+                    if(length(Q) == 0){
+                      Q = as.double(c(NA,NA))
                     }
                     
-                    IntensityStuff$Q1 <- Q[1]
-                    IntensityStuff$Q2 <- Q[2]
-                    IntensityStuff$Q1align <-QAlign[1]
-                    IntensityStuff$Q2align <-QAlign[2]
+                    IntensityStuff <- rbind(PeakDetected$XIC,PeakDetected$intensity)
+                    IntensityStuff <- data.frame(IntensityStuff)
+                    
+                    if(AlignedRTs){
+                      Qori <- tempana_rf$RT2[match(Q,tempana_rf$RTalign)]
+                      IntensityStuff$Q1 <-Qori[1]
+                      IntensityStuff$Q2 <-Qori[2]
+                      IntensityStuff$Q1align <- Q[1]
+                      IntensityStuff$Q2align <- Q[2]
+                    }else{
+                      QAlign <- tempana_rf$RTalign[match(Q,tempana_rf$RT2)]
+                      if(length(QAlign)==0){
+                        QAlign <- Q
+                      }
+                      
+                      IntensityStuff$Q1 <- Q[1]
+                      IntensityStuff$Q2 <- Q[2]
+                      IntensityStuff$Q1align <-QAlign[1]
+                      IntensityStuff$Q2align <-QAlign[2]
+                    }
+                    
+                    IntensityStuff$Peaks <- as.double(NA)
+                    IntensityStuff$QuantitationType <- QuantitationType
+                    OutTable <- cbind(IntensityStuff,infoquantile)
+                  }else{
+                    OutTable <- NULL
                   }
                   
-                  IntensityStuff$Peaks <- as.double(NA)
-                  IntensityStuff$QuantitationType <- QuantitationType
-                  OutTable <- cbind(IntensityStuff,infoquantile)
-                }else{
-                  OutTable <- NULL
+                  # if(cleandata){
+                  #   OutTable$Q1 <- as.double(NA)
+                  #   OutTable$Q2 <- as.double(NA)
+                  #   OutTable$Q1align <- as.double(NA)
+                  #   OutTable$Q2align <- as.double(NA)
+                  #   
+                  #   OutTable[,1:which(colnames(OutTable)=="Q1")]<- as.double(NA)
+                  #   
+                  # }else{
+                  #   OutTable <-   as.list(OutTable)
+                  #   
+                  # }
+                  # OutTable <<- OutTable
                 }
                 
-                # if(cleandata){
-                #   OutTable$Q1 <- as.double(NA)
-                #   OutTable$Q2 <- as.double(NA)
-                #   OutTable$Q1align <- as.double(NA)
-                #   OutTable$Q2align <- as.double(NA)
-                #   
-                #   OutTable[,1:which(colnames(OutTable)=="Q1")]<- as.double(NA)
-                #   
-                # }else{
-                #   OutTable <-   as.list(OutTable)
-                #   
-                # }
-                # OutTable <<- OutTable
+                OutTable
+              },rawfile]
+              DPnochange <- DP[is.na(match(rawfile,Corrected$rawfile)),]
+              if(dim(Corrected)[1]>0){
+                DPnew <- rbind(DPnochange,Corrected)
+                
+                cat("\rrewriting",dbtaNameVec)
+                
+                if(dim(DPnew)[1]==dim(DP)[1]){
+                  dbwrite(DPnew,dbtaNameVec,dbp_write,overwrite = T)
+                }
               }
               
-              OutTable
-            },rawfile]
-            DPnochange <- DP[is.na(match(rawfile,Corrected$rawfile)),]
-            if(dim(Corrected)[1]>0){
-              DPnew <- rbind(DPnochange,Corrected)
-              
-              cat("\rrewriting",dbtaNameVec)
-              
-              if(dim(DPnew)[1]==dim(DP)[1]){
-                dbwrite(DPnew,dbtaNameVec,dbp_write,overwrite = T)
-              }
             }
-            
+            # DPnew
+          }else{
+            NULL
           }
-          # DPnew
-        }else{
           NULL
-        }
-        NULL
-      })
+        })
+        
+        dbtaNameVec <- dbtaName(ana,dbp)
+        DPlist <- lapply(dbtaNameVec,function(x){DP <- dbread(x,dbp);   #   DP <- DP[DP$QuantitationType == QType,];
+        DP
+        
+        
+        })
+      }
       
-      dbtaNameVec <- dbtaName(ana,dbp)
-      DPlist <- lapply(dbtaNameVec,function(x){DP <- dbread(x,dbp);   #   DP <- DP[DP$QuantitationType == QType,];
-      DP
-      
-      
-      })
     }
+    # Deciding on precursors per rawfile, which need to be requantified
+    
+    
   }
   
   DPlist

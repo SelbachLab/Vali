@@ -2254,6 +2254,7 @@ server <- function(input, output, session){
                                   session=session
                                   
       )
+      
       DPlistCheck <<- DPlist
     })
     
