@@ -152,7 +152,7 @@ PrepareTransitionList <- function(mainPath,maxquant,inclusionList,ppm = 10,ppm2 
     cl <- makeCluster(10,outfile="")
     setwd(mainPath)
     clusterExport(cl,"ExtractTopIntMs1")
-    rs <- list.files(pattern=".raw")
+    rs <- list.files(pattern=".raw$|.d$")
     parLapply(cl,rs,function(x){
       library(rawrr)
       library(data.table)
@@ -1373,8 +1373,8 @@ Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFil
   setwd(RawFilePath)
   #finding RawFiles
   
-  raws <- list.files(pattern = ".raw$")
-  
+  # raws <- list.files(pattern = ".raw$")
+  raws <- list.files(pattern="\\.raw$|\\.d$")
   
   # Decoys:
   ST <- fread(paste(InclusionlistPath,"SpectraTable.txt",sep = "/"))

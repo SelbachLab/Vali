@@ -53,8 +53,13 @@ if(length(args1) >0){
 }
 # SystemPath <- "E:/MaxQuant/MVB/Vali_20210914_Preliminary_experiment/Vali-master/Vali-master/"
 print("Evaluating Path")
+
 if(!exists("SystemPath")){
   try(SystemPath <- dirname(dirname(rstudioapi::documentPath())))
+  
+}
+if(!exists("SystemPath")){
+  try(SystemPath <- choose.dir())
   
 }
 print("Evaluating Path 2")
@@ -177,7 +182,7 @@ ui <- fluidPage(
                                       fluidRow(column(4,actionButton("BadPeak","",icon = icon("thumbs-down"),style="color: #ff2600; border-color: #ff2600")),
                                                column(4,actionButton("notdefinedPeak","",icon = icon("stethoscope"),style="color: #2e6da4; border-color: #2e6da4")),
                                                column(4,actionButton("GoodPeak","",icon = icon("thumbs-up"),style="color: #00b19c; border-color: #00b19c")),style = "border: 1px"),
-                                      )     ,                       
+                                    )     ,                       
                                     
                                     # checkboxInput("PRMonly","PRM",value = T),
                                     conditionalPanel("false",
@@ -185,15 +190,15 @@ ui <- fluidPage(
                                     ),
                                     wellPanel(
                                       wellPanel(
-                                      fluidRow(column(6,mainPanel(h5("Peak Assignment"),width = "100%"),style = "margin-top: -10px")),#column(8,checkboxInput("allshifts","All m/z",T))),
-                                      
-                                      fluidRow(column(6,actionButton("ManualSetPeak","Set",style="background-color: #00b19c;color: #fff",width = "100%")),column(6,actionButton("RemovePeak","Remove",width = "100%",style="background-color: #ff2600;color: #fff"))),
-                                      fluidRow(column(12,actionButton("reset", "Reset",style="background-color: #005493;color: #fff",width = "100%"),style = "margin-top: 5px")),
-                                      
-                                      conditionalPanel("false",
-                                                       fluidRow(column(12,actionButton("SetSearchArea","Area Search",width = "100%",style="background-color: #2e6da4;color: #fff"),style = "margin-top: 5px"))
-                                                       
-                                      )
+                                        fluidRow(column(6,mainPanel(h5("Peak Assignment"),width = "100%"),style = "margin-top: -10px")),#column(8,checkboxInput("allshifts","All m/z",T))),
+                                        
+                                        fluidRow(column(6,actionButton("ManualSetPeak","Set",style="background-color: #00b19c;color: #fff",width = "100%")),column(6,actionButton("RemovePeak","Remove",width = "100%",style="background-color: #ff2600;color: #fff"))),
+                                        fluidRow(column(12,actionButton("reset", "Reset",style="background-color: #005493;color: #fff",width = "100%"),style = "margin-top: 5px")),
+                                        
+                                        conditionalPanel("false",
+                                                         fluidRow(column(12,actionButton("SetSearchArea","Area Search",width = "100%",style="background-color: #2e6da4;color: #fff"),style = "margin-top: 5px"))
+                                                         
+                                        )
                                       ),
                                       wellPanel(
                                         fluidRow(column(12,selectInput("Requantify_Priority","Requantify Priority",c("DL_Scores","Intensity","Light","Heavy","none")))),
@@ -439,11 +444,11 @@ ui <- fluidPage(
                    fluidRow(column(2,actionButton("Library_AdjustmentsBUTTON","Browse",icon=icon("folder"),style="margin-top:25px")),
                             column(8,textInput(inputId = "Library_MassShift_Path","Path to SpectraTable.txt",value = mainPath,width = '100%')),
                             column(2,actionButton("ApplyMassShifts","Convert",icon=icon("rocket"),style="margin-top:25px"))), # Protein Selecter
-                  wellPanel(
-                   fluidRow(column(8,dataTableOutput('MassShiftInitTable') ),column(4,actionButton("AlterMassShiftInitTable","Modify table")))
-                  )
+                   wellPanel(
+                     fluidRow(column(8,dataTableOutput('MassShiftInitTable') ),column(4,actionButton("AlterMassShiftInitTable","Modify table")))
+                   )
                  )
-              )
+               )
       )
       ,
       tabPanel("Advanced Settings",icon=icon("skull-crossbones"),
@@ -2678,7 +2683,7 @@ server <- function(input, output, session){
       if(file.exists(input$MSMS_Conversion_Path)){
         progress_Conversion <- Progress$new(session)
         progress_Conversion$set(message = 'MSMS Conversion',
-                              detail = "Starting")
+                                detail = "Starting")
         on.exit(progress_Conversion$close())
         
         ipp <<- input$MSMS_Conversion_Path
@@ -3219,7 +3224,7 @@ server <- function(input, output, session){
     # })
     showNotification(paste("Finished Export. You can find the tables in the export folder in your experiment location.\n",IPMAINPATH,sep = ""),duration = NULL,type = "message")
   })         
-
+  
   # MassShift Conversion ###########
   observeEvent(input$AlterMassShiftInitTable,{
     na <- paste(SystemPath,"R","MassShifts.txt",sep = "/")
@@ -3249,13 +3254,13 @@ server <- function(input, output, session){
     ShiftTableIni
   })
   output$MassShiftInitTable <- renderDataTable(
-                                               {
-                                                 MassShiftInitTable$ShiftTableIni
-                                               }
-                                 )
+    {
+      MassShiftInitTable$ShiftTableIni
+    }
+  )
   observeEvent(input$ApplyMassShifts,{
     if(!is.na(file.info(input$Library_MassShift_Path)$isdir)){
-      if(file.info(input$Library_MassShift_Path)$isdir){
+      if(!file.info(input$Library_MassShift_Path)$isdir){
         SpectraTableDirectory <- dirname(input$Library_MassShift_Path)
       }else{
         SpectraTableDirectory <-  input$Library_MassShift_Path
@@ -3264,8 +3269,11 @@ server <- function(input, output, session){
       on.exit(progress$close())
       progress$set(message = 'Applying Mass Shifts',
                    detail = "")
+      hu <- "DIDNTWORK"
       try({
         print("Starting SilacConverter")
+        SpectraTableDirectory <<-SpectraTableDirectory
+        ShiftTableIni <<- MassShiftInitTable$ShiftTableIni
         hu <- SilacConverter(SpectraTableDirectory,MassShiftInitTable$ShiftTableIni)
         print("Finished SilacConverter")
         
