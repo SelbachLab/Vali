@@ -5398,7 +5398,6 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
 }
 DetectPeak_v2_v1 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=1,RelaxationRounds=20,BootstrapRounds=20,minpeakheight=0.1,pl=F,smoothingFactor=51,presetQuantiles=NULL,ApplyMaximumWidth=T,Score = NULL,Identifier=NULL,...){
   RT.DetectPeak <- RT
-  # load("/Users/henno/Documents/Skripte/R-Functions/Selbach-Functions/DataAnalysis/20220209_MVB_Rawfiles_library_bio_benchmarking/DetectPeak_V2_TempNameSpace.rda")
   save(rt_pep,Peakwidth,transitions,smoothingFactor,
        RT.DetectPeak,estimatedPeakDistance,BootstrapRounds,
        minpeakheight,presetQuantiles,ApplyMaximumWidth,Score,
