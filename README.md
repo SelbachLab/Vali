@@ -2,9 +2,7 @@
 Vali analyzes PRM raw files acquired by Thermo-Fisher Orbitrap instruments. It is optimized to work with [Picky](https://picky.mdc-berlin.de) generated spectrum libraries and provides semi-automated peak determination. All peak assignments can be manually adjusted or corrected. Subsequently, quantified fragment peaks can be exported as tab delimited text files.
 ## Requirements
 * R > 4.0.3
-* [Rawrr Requirements](https://github.com/fgcz/rawrr):
-    * [Mono](https://www.mono-project.com)
-    * [MS .Net Framework](https://dotnet.microsoft.com/download)
+
 ### Packages:
     ## Required R-Packages
 The following packages are required for full functionality of Vali:
@@ -20,7 +18,7 @@ The following packages are required for full functionality of Vali:
 * shinyWidgets 0.6.4
 * tcltk 4.1.2
 * rawDiag (obsolete, not used anymore)
-* rawrr 1.3.3
+* rawrr 1.3.3: (https://github.com/fgcz/rawrr)
  * You must set '.' as decimal seperator in your system. 
 
 ## Getting Started
