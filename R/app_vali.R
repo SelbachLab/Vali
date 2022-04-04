@@ -9,7 +9,7 @@ library(Peptides)# for MS1, currently not implemented
 library(enviPat)# for isotope pattern distribution calculation used in MS1 assessment
 library(shinyWidgets)
 library(tcltk)
-require(rawDiag)
+# require(rawDiag)
 library(rawrr)
 
 options(warn=-1)

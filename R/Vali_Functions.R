@@ -371,6 +371,144 @@ ExpandFragmentlist <- function(PEPTIDESexport,precursorInfo,Tselect,Reverse = F,
   fwrite(PEPTIDESexport,name_pep,sep = "\t",append = T)
   
 }
+ExpandFragmentlist_Bruker <- function(PEPTIDESexport,precursorInfo,Tselect,Reverse = F,rname="NoName"){
+  # Wrapper for  Vali compatible output
+  vec <- c("charge","rawfile","R","R_p","IntensitySum","SCAall","SCAcut","MatchCount","ZeroScore","DiffSum","inv_ion_mobility","RT","scan")
+  
+  PEPTIDESexport$charge <- precursorInfo$Charge[1] # not relevant
+  PEPTIDESexport$rawfile <- rname # done
+  PEPTIDESexport$RT <- PEPTIDESexport$retention_time
+  PEPTIDESexport$retention_time <- NULL
+  
+  # Expand Rawfile with Faims information if FaimsInfo is available:
+  if(length(PEPTIDESexport$FAIMS_cv)>0){
+    if(any(PEPTIDESexport$FAIMS_cv!="")){
+      PEPTIDESexport$rawfile <- paste(basename(r),PEPTIDESexport$FAIMS_cv,sep="#CV")
+    }
+  }
+  PEPTIDESexport$FAIMS_cv <- NULL
+  
+  Fragments <- setdiff(colnames(PEPTIDESexport),vec)  
+  
+  
+  PEPTIDESexport$R <- 0 # DONE
+  PEPTIDESexport$R_p <- 1 # DONE
+  PEPTIDESexport$SCAall <- 0 #DONE
+  PEPTIDESexport$SCAcut <- 0 #DONE
+  PEPTIDESexport$IntensitySum <- 0 # DONE
+  PEPTIDESexport$ZeroScore <- 0 # UseLess
+  PEPTIDESexport$DiffSum <- 0 # DONE
+  PEPTIDESexport$RT_min <- PEPTIDESexport$RT#/60
+  PEPTIDESexport[,SCAall:={
+    temp <- .SD
+    temp <- unlist(temp)
+    temp[temp == -1] <- 0
+    NSA <- 0
+    try({NSA <- NormSpecAngle(temp,Tselect$Intensities)},silent = T)
+    
+  },.SDcols=Fragments,by=scan]
+  
+  PEPTIDESexport[,SCAcut:={
+    temp <- .SD
+    temp <- unlist(temp)
+    temp[temp == -1] <- 0
+    NormSpecAngle(temp[1:6],Tselect$Intensities[1:6])
+    
+  },.SDcols=Fragments,by=scan]
+  
+  PEPTIDESexport[,IntensitySum:={
+    temp <- .SD
+    apply(temp,1,function(x){sum(x[x!=-1])})
+    
+    
+  },.SDcols=Fragments,by=scan]
+  
+  
+  COR <- PEPTIDESexport[,{
+    temp <- .SD
+    temp <- unlist(temp)
+    temp[temp == -1] <- 0
+    LI <- list(R=0,R_p=1)
+    try({
+      ct <- cor.test(Tselect$Intensities,temp)
+      LI <- list(R= ct$estimate,R_p= ct$p.value)
+    },silent = T)
+    LI
+    
+  },.SDcols=Fragments,by=scan]
+  COR[!is.na(COR$R)]
+  
+  COR <- COR[match(PEPTIDESexport$scan,scan),,]
+  COR$R[is.na(COR$R)] <- 0
+  COR$R_p[is.na(COR$R)] <- 1
+  PEPTIDESexport$R <- COR$R
+  PEPTIDESexport$R_p <- COR$R_p
+  
+  
+  ColOrder <- c(Fragments,vec)
+  PEPTIDESexport <-  setcolorder(PEPTIDESexport,ColOrder)
+  
+  
+  mz <- precursorInfo$mz
+  z = precursorInfo$Charge
+  Use_ModifiedSequence <- T
+  if(Use_ModifiedSequence){
+    Modfun <- grep("modified.sequence",names(precursorInfo),ignore.case = T)
+    if(length(Modfun)==1){
+      se <- as.data.frame(precursorInfo)[,Modfun]
+      
+    }else{
+      print("Cannot find corred modified sequence column. Switching to Sequence")
+      se <- precursorInfo$Sequence
+      
+    }
+    se <- gsub("^_","",se)
+    se <- gsub(" ","",se)
+    se <- gsub(" ","",se)
+    se <- gsub(".","p",se,fixed = T)
+    se <- gsub("_",".",se,fixed = T)
+    se <- gsub("..",".",se,fixed = T)
+    se <- gsub(".","",se,fixed = T)
+    
+  }else{
+    se = precursorInfo$Sequence
+    
+  }
+  id= precursorInfo$SpecID
+  OutnameInfo <- paste(mz,z,se,precursorInfo$Proteins,precursorInfo$GeneSymbol,precursorInfo$SpecID,sep = "_")
+  if(Reverse){
+    name_pep <- paste(paste(paste("mz",mz,sep = ""),z,se,id,sep = "_"),"Rev+.txt",sep = "")
+    
+  }else{
+    name_pep <- paste(paste(paste("mz",mz,sep = ""),z,se,id,sep = "_"),".txt",sep = "")
+    
+  }
+  infoname <- paste(paste(paste("",mz,sep = ""),z,se,id,sep = "_"),".info",sep = "")
+  write(OutnameInfo,infoname)
+  if(file.exists(name_pep)){
+    temp <- fread(name_pep,sep = "\t",nrows = 1)
+    if(length(colnames(temp))!=length(colnames(PEPTIDESexport))){
+      # PEPTIDESexport <<- PEPTIDESexport
+      # precursorInfo <<- precursorInfo
+      # Tselect <<- Tselect
+      fwrite(PEPTIDESexport,paste("Wrong",name_pep,sep="_"),sep = "\t",append = F)
+      
+      stop("Length of tables differs.")
+      
+    }else{
+      if(any(colnames(temp)!=colnames(PEPTIDESexport))){
+        # PEPTIDESexport <<- PEPTIDESexport
+        # precursorInfo <<- precursorInfo
+        # Tselect <<- Tselect
+        fwrite(PEPTIDESexport,paste("Wrong",name_pep,sep="_"),sep = "\t",append = F)
+        
+        stop("Different Column Names in tables.")
+      }
+    }
+  }
+  fwrite(PEPTIDESexport,name_pep,sep = "\t",append = T)
+  
+}
 
 RawDiag_Vali_Extracter_DIA <- function(r,dirout,outpath,ST,TT,TTdec,ppm1=10,ppm2=10,ShowInfo=F,extraSink=T,SystemPath=NULL,session=NULL,DIA=T,ExtractMS1 = F,SaveScans=T,descriptionfilter =NULL,InvertSearch=T){
   # if(extraSink){
@@ -1369,7 +1507,7 @@ Extract_Intensities_Raw <- function(RawFilePath,InclusionlistPath,outpath=RawFil
                                     parallelExecution=T,ppm1=10,ppm2=10,ChargeDetection="^",useDIA=T,session = NULL,
                                     threads = detectCores(),ScanStringFilterInvert=T,ScanStringFilter=NULL,ExpandingSpecificity=T){
   require(data.table)
-  require(rawDiag)
+  require(rawrr)
   setwd(RawFilePath)
   #finding RawFiles
   
@@ -2950,7 +3088,7 @@ ScoringWrapper <- function(db,mdModel = NULL,SystemPath = NULL,Parallelh20=F,ses
           cat("Using",cores,"cores")
           # PH <- parSapply(cl,uniSeq,function(x){PeptideHydrophobicity(x)})
           s1 <-system.time(PredictionScores <- parSapply(cl,Models.h2o,function(x,mztable.h2o){
-            require(rawDiag)
+            require(rawrr)
             require(h2o)
             h2o.init()
             PREDI <- as.data.frame(h2o.predict(x,mztable.h2o))
@@ -5398,6 +5536,7 @@ DetectPeak_v2 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=
 }
 DetectPeak_v2_v1 <- function(rt_pep,Peakwidth,transitions,RT,estimatedPeakDistance=1,RelaxationRounds=20,BootstrapRounds=20,minpeakheight=0.1,pl=F,smoothingFactor=51,presetQuantiles=NULL,ApplyMaximumWidth=T,Score = NULL,Identifier=NULL,...){
   RT.DetectPeak <- RT
+  
   save(rt_pep,Peakwidth,transitions,smoothingFactor,
        RT.DetectPeak,estimatedPeakDistance,BootstrapRounds,
        minpeakheight,presetQuantiles,ApplyMaximumWidth,Score,
