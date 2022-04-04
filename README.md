@@ -4,7 +4,6 @@ Vali analyzes PRM raw files acquired by Thermo-Fisher Orbitrap instruments. It i
 * R > 4.0.3
 
 ### Packages:
-    ## Required R-Packages
 The following packages are required for full functionality of Vali:
 * shiny 1.7.1
 * RSQLite 2.2.10
@@ -22,9 +21,10 @@ The following packages are required for full functionality of Vali:
  * You must set '.' as decimal seperator in your system. 
 
 ## Getting Started
-1. Start Vali
+1.1 Start Vali
     * Vali.bat (Windows)
     * Vali.sh (Linux or MacOs)
+1.2 Alternatively open and run app_vali.R in Rstudio.
 2. Go to the RawScanner Tab.
 3. Set the Path to the Main Analysis folder, which contains your raw files (PRM, tDIA or DIA).
 4. Set the Picky Export folder path. This folder must be the exact same one you exported from Picky. 
