@@ -79,7 +79,7 @@ if(length(script.name)>0){
 print(SystemPath)
 print(getwd())
 print(list.files())
-ShinyStarter <- paste(SystemPath,"R/app_EVALUATION_python.R",sep = "/")
+ShinyStarter <- paste(SystemPath,"R/app_vali.R",sep = "/")
 if(file.exists(ShinyStarter)){
   print("Starting Vali")
   print(ShinyStarter)
