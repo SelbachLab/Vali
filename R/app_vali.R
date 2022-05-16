@@ -51,7 +51,6 @@ if(length(args1) >0){
   
   
 }
-# SystemPath <- "E:/MaxQuant/MVB/Vali_20210914_Preliminary_experiment/Vali-master/Vali-master/"
 print("Evaluating Path")
 
 if(!exists("SystemPath")){
