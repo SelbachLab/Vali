@@ -10,7 +10,7 @@ if(!file.exists("Export_Vali.rda")){
 
 try({
   ls <- load("Export_Vali.rda")
-  (source(paste(SystemPath,"/R/EvaluationScript_PRM_sqlite.R",sep = "")))
+  (source(paste(SystemPath,"/R/Vali_Functions.R",sep = "")))
   
   library(parallel)
   
@@ -63,7 +63,7 @@ try({
       library(data.table)
       library(pracma)
       
-      (source(paste(SystemPath,"/R/EvaluationScript_PRM_sqlite.R",sep = "")))
+      (source(paste(SystemPath,"/R/Vali_Functions.R",sep = "")))
       
       PeaksTableName <- paste("./ParallelExport/",Sys.getpid(),"Peaks.txt",sep="")
       

@@ -7791,7 +7791,7 @@ Fun.Fit.lm <- function(s1x,s1y,s2x,s2y,labelnames = NULL,...){
 }
 
 ############## Not implmented here #############
-ConvertMSMStoPicky <- function(mspath,IL = NULL,sep = ";",ppm1 = 100,  UseBestScoringPeptide = T){
+ConvertMSMStoPicky <- function(mspath,IL = NULL,sep = ";",ppm1 = 100,  UseBestScoringPeptide = F){
   # IL <<- IL
   # mspath <<- mspath
   if(length(IL) == 0){
