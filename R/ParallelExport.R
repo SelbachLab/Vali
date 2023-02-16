@@ -39,9 +39,10 @@ try({
   clu <- makeCluster(threads,outfile="export.txt")
   parallel::clusterExport(clu,ls)
   
+  
   if(ExportPeaks){
-    try({parSapply(clu,1:length(anaexport),function(i){
-      # try({sapply(7:length(anaexport),function(i){
+    # try({parSapply(clu,1:length(anaexport),function(i){
+    try({sapply(1:length(anaexport),function(i){
       icurrent <<- i
       # options(warn=1)
       # save.image(paste("./ParallelExport/ExportParallel_",Sys.getpid(),".rda",sep = ""))
@@ -323,34 +324,72 @@ try({
   }
   # Ratio Estimation
   li <- list.files("./ParallelExport",pattern=".Peaks.txt$",full.names = T)
-  if(length(li)>0&ExportRatios){
-    clusterExport(clu,c("PeaksProcessingLM","Fun.Fit.lm"))
-    hu <-  parSapply(clu,li,function(peakspath){
-      # hu <-  sapply(li,function(peakspath){
-      print(peakspath)
-      library(data.table)
-      library(deming)
-      if(file.exists(peakspath)){
-        peaks <- fread(peakspath,sep ="\t",stringsAsFactors = F)
-        peaks[,Precursor := gsub("_.*$","",precursor_ID)]
-        peaks[,PrecursorInfo := substr(precursor_ID,gregexpr("_",precursor_ID)[[1]][1],nchar(precursor_ID))]
-        peaks[,Sequence:= strsplit(precursor_ID,"_")[[1]][3],precursor_ID]
-        peaks[,Label:= strsplit(Sequence,"#")[[1]][2],precursor_ID]
-        peaks[,Sequence:= strsplit(Sequence,"#")[[1]][1],precursor_ID]
+  all_Peaks <- lapply(li,fread,sep = "\t")
+  all_Peaks <- rbindlist(all_Peaks)
+  
+  try({
+    print("Expanding Names")
+    all_Peaks[,Precursor := gsub("_.*$","",precursor_ID)]
+    all_Peaks[,PrecursorInfo := substr(precursor_ID,gregexpr("_",precursor_ID)[[1]][1],nchar(precursor_ID))]
+    all_Peaks[,Sequence:= strsplit(precursor_ID,"_")[[1]][3],precursor_ID]
+    all_Peaks[,Label:= strsplit(Sequence,"#")[[1]][2],precursor_ID]
+    all_Peaks[,Sequence:= strsplit(Sequence,"#")[[1]][1],precursor_ID]
+    
+    all_Peaks[,Charge:= strsplit(precursor_ID,"_")[[1]][[2]],precursor_ID]
+    all_Peaks[,Gene:= strsplit(precursor_ID,"_")[[1]][[5]],precursor_ID]
+    if(any(is.na(all_Peaks$mz))){
+      all_Peaks$mz <- as.numeric(gsub("^mz","",all_Peaks$Precursor))
+    }
+    all_Peaks <- all_Peaks[!is.na(value),]
+  })
+  
+  if(dim(all_Peaks)[1]>0&ExportRatios){
+    try({
+      ID <- paste(all_Peaks$Sequence,all_Peaks$charge,all_Peaks$Gene)
+      IDunique <- unique(ID)
+      print("Exporting to cluster")
+      clusterExport(clu,c("all_Peaks","ID","peakspath"))
+      print("Starting  cluster")
+      
+      hu <- parSapply(clu,IDunique,function(IDu){
+        library(data.table)
+        library(deming)
+        peaks <- all_Peaks[ID==IDu,]
         
-        peaks[,Charge:= strsplit(precursor_ID,"_")[[1]][[2]],precursor_ID]
-        peaks[,Gene:= strsplit(precursor_ID,"_")[[1]][[5]],precursor_ID]
-        
-        if(any(is.na(peaks$mz))){
-          peaks$mz <- as.numeric(gsub("^mz","",peaks$Precursor))
-        }
-        peaks <- peaks[!is.na(value),]
         Ratios <- PeaksProcessingLM(peaks,progressObj = NULL,outpath="./ParallelExport/")
-        fwrite(Ratios,gsub("Peaks.txt$","Ratios.txt",peakspath),sep = "\t")
-      }
-      NULL
+        fwrite(Ratios,gsub("Peaks.txt$",paste(unique(as.numeric(factor(ID))[ID==IDu]),"Ratios.txt",sep="_"),peakspath),sep = "\t")
+        NULL
+      })
     })
+    
   }
+  
+  # if(length(li)>0&ExportRatios){
+  #   clusterExport(clu,c("PeaksProcessingLM","Fun.Fit.lm"))
+  # 
+  #   hu <-  parSapply(clu,li,function(peakspath){
+  #     # hu <-  sapply(li,function(peakspath){
+  #     print(peakspath)
+  #     library(data.table)
+  #     library(deming)
+  #     if(file.exists(peakspath)){
+  #       peaks <- fread(peakspath,sep ="\t",stringsAsFactors = F)
+  #       peaks[,Precursor := gsub("_.*$","",precursor_ID)]
+  #       peaks[,PrecursorInfo := substr(precursor_ID,gregexpr("_",precursor_ID)[[1]][1],nchar(precursor_ID))]
+  #       peaks[,Sequence:= strsplit(precursor_ID,"_")[[1]][3],precursor_ID]
+  #       peaks[,Label:= strsplit(Sequence,"#")[[1]][2],precursor_ID]
+  #       peaks[,Sequence:= strsplit(Sequence,"#")[[1]][1],precursor_ID]
+  #       
+  #       peaks[,Charge:= strsplit(precursor_ID,"_")[[1]][[2]],precursor_ID]
+  #       peaks[,Gene:= strsplit(precursor_ID,"_")[[1]][[5]],precursor_ID]
+  #       
+  #      
+  #       Ratios <- PeaksProcessingLM(peaks,progressObj = NULL,outpath="./ParallelExport/")
+  #       fwrite(Ratios,gsub("Peaks.txt$","Ratios.txt",peakspath),sep = "\t")
+  #     }
+  #     NULL
+  #   })
+  # }
   
   stopCluster(clu)
   # system("open export.txt")
